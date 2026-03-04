@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>TrafficIQ — Smart Diversions</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link rel="stylesheet" href="shortcuts.css"/>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<header id="topbar">
+  <div class="tb-l">
+    <a href="dashboard.html" class="back-btn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M5 12l7-7M5 12l7 7"/></svg>Back
+    </a>
+    <div class="tb-brand">
+      <span class="live-badge"><span class="ldot"></span>LIVE</span>
+      <h1>Smart Diversions · <em id="tbCity">…</em></h1>
+    </div>
+  </div>
+  <div class="tb-r">
+    <div class="tb-stat">
+      <strong id="tbOnline">
+        <span class="ldot" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--cg);box-shadow:0 0 6px var(--cg);animation:ld 1.2s ease infinite;margin-right:3px;vertical-align:middle"></span>
+        <span id="onlineCount">—</span>
+      </strong>
+      <span>online now</span>
+    </div>
+    <div class="tb-stat"><strong id="tbConf">—</strong><span>confidence</span></div>
+    <button id="panTog" class="icon-btn" title="Toggle Panel">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+    </button>
+    <button id="themeBtn" class="icon-btn">🌙</button>
+  </div>
+</header>
+<div class="layout">
+  <aside id="panel">
+    <div class="panel-inner">
+      <p class="panel-title">⚡ HIGHLIGHTED SHORTCUTS</p>
+      <div class="conf-block" id="confBlock">
+        <p class="conf-label">ROUTE CONFIDENCE</p>
+        <div class="conf-ring-wrap">
+          <svg class="conf-svg" viewBox="0 0 120 120">
+            <defs>
+              <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#22c55e"/>
+                <stop offset="100%" stop-color="#00cfff"/>
+              </linearGradient>
+            </defs>
+            <circle class="ring-bg" cx="60" cy="60" r="50"/>
+            <circle class="ring-fill" id="ringFill" cx="60" cy="60" r="50"
+              stroke-dasharray="314" stroke-dashoffset="314"/>
+          </svg>
+          <div class="conf-center">
+            <span class="conf-num" id="confNum">0</span>
+            <span class="conf-pct">%</span>
+          </div>
+        </div>
+        <p class="conf-status" id="confStatus">Select a shortcut</p>
+      </div>
+    </div>
+  </aside>
+  <main class="stream">
+    <button id="scrollBtn" class="scroll-btn" onclick="scrollToBottom()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+      New messages ↓
+    </button>
+    <div class="feed-hdr">
+      <span class="feed-hdr-title">COMMUNITY DISCUSSION</span>
+      <span class="feed-hdr-sub" id="feedSub">Select a shortcut to load its live feed</span>
+    </div>
+    <div class="feed" id="feed">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-ico">⚡</div>
+        <p class="empty-title">Choose a shortcut</p>
+        <p class="empty-sub">Select one of the highlighted shortcuts on the left to load the live community discussion for that route.</p>
+      </div>
+    </div>
+    <div class="dock">
+      <div class="triggers"></div>
+      <div class="input-row">
+        <div class="chat-wrap">
+          <input id="chatInp" type="text" placeholder="Share your shortcut experience…" autocomplete="off"/>
+          <button class="send-btn" onclick="sendMsg()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+        <div class="qnav">
+          <a href="shortcuts.html"      class="qi qi-active" data-tip="Shortcuts"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></a>
+          <a href="time-taken.html"     class="qi" data-tip="Time Taken"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></a>
+          <a href="enter-traffics.html" class="qi" data-tip="Enter Traffic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></a>
+          <a href="info-passer.html"    class="qi" data-tip="Info Passer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></a>
+          <a href="entertainment.html"  class="qi" data-tip="Entertainment"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></a>
+          <a href="trusted-users.html"  class="qi" data-tip="Trusted Users"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></a>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<div id="mobOverlay" onclick="togglePanel()"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getFirestore, collection, doc, setDoc,
+    onSnapshot, query, orderBy, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import {
+    getDatabase, ref, onValue, onDisconnect, set,
+    serverTimestamp as rtServerTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAKGbbt_ARGWep8ggPuk_iE6R1xALkmJM8",
+    authDomain: "trafficiq-3ef14.firebaseapp.com",
+    projectId: "trafficiq-3ef14",
+    storageBucket: "trafficiq-3ef14.firebasestorage.app",
+    messagingSenderId: "97313655693",
+    appId: "1:97313655693:web:fee4304d7815bdceaf0bc4",
+    databaseURL: "https://trafficiq-3ef14-default-rtdb.firebaseio.com"
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const db   = getFirestore(app);
+  const rtdb = getDatabase(app);
+
+  window.db = db;
+  window.fb = { collection, doc, setDoc, onSnapshot, query, orderBy, serverTimestamp };
+
+  /* ── Stable session ID ──
+     Uses sessionStorage so the SAME tab always reuses the same key.
+     Navigating between pages in the same tab = same ID = still 1 user.
+     Opening a new tab = new sessionStorage = new ID = 2 users. Correct.
+  ── */
+  let sessionId = sessionStorage.getItem('tiq-session');
+  if (!sessionId) {
+    sessionId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    sessionStorage.setItem('tiq-session', sessionId);
+  }
+
+  const presenceRef = ref(rtdb, `presence/shortcuts/${sessionId}`);
+  const countRef    = ref(rtdb, 'presence/shortcuts');
+
+  // Register this session as online, overwrite if already exists (same tab revisit)
+  set(presenceRef, { online: true, t: rtServerTimestamp() });
+  // Auto-remove when tab closes
+  onDisconnect(presenceRef).remove();
+
+  // Live count of online users
+  onValue(countRef, snap => {
+    const count = snap.exists() ? Object.keys(snap.val()).length : 0;
+    document.getElementById('onlineCount').textContent = count;
+  });
+
+  // Load shortcuts.js AFTER Firebase is ready
+  const s = document.createElement('script');
+  s.src = 'shortcuts.js';
+  document.body.appendChild(s);
+</script>
+</body>
+</html>

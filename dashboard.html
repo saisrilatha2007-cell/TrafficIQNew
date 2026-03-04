@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TrafficIQ — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <link rel="stylesheet" href="dashboard.css"/>
+  <style>
+    /* ── Leaflet Map Overrides ── */
+    #map { position:fixed; inset:0; z-index:0; width:100%; height:100%; }
+    .leaflet-container { font-family:'Plus Jakarta Sans',sans-serif; }
+    [data-theme="dark"] .leaflet-tile-pane { filter:invert(1) hue-rotate(180deg) brightness(0.85) saturate(0.8); }
+
+    /* Vehicle marker */
+    .vehicle-marker-icon { background:transparent; border:none; }
+    .vehicle-pin { display:flex; flex-direction:column; align-items:center; animation:vfl 3s ease infinite alternate; }
+    .vehicle-pin svg { filter:drop-shadow(0 3px 8px rgba(0,0,0,.35)); }
+    .vehicle-pin .pin-pulse { width:14px; height:14px; border-radius:50%; background:rgba(26,115,232,0.35); animation:pulse-ring 1.8s ease infinite; margin-top:-4px; }
+    @keyframes pulse-ring { 0%{transform:scale(0.6);opacity:1} 100%{transform:scale(2.2);opacity:0} }
+    @keyframes vfl { from{transform:translateY(0)} to{transform:translateY(-5px)} }
+
+    /* Search pin */
+    .search-pin { width:20px; height:20px; background:#e53935; border-radius:50% 50% 50% 0; transform:rotate(-45deg); border:3px solid #fff; box-shadow:0 3px 12px rgba(229,57,53,.6); animation:pin-drop .4s cubic-bezier(.36,.07,.19,.97) both; }
+    @keyframes pin-drop { from{transform:rotate(-45deg) translateY(-30px);opacity:0} to{transform:rotate(-45deg) translateY(0);opacity:1} }
+
+    /* Location search */
+    #locationSearch { position:fixed; top:68px; left:50%; transform:translateX(-50%); z-index:300; display:flex; flex-direction:column; align-items:center; width:min(420px,92vw); }
+    .loc-wrap { width:100%; display:flex; align-items:center; background:var(--card); border:1px solid var(--bdr); border-radius:12px; backdrop-filter:blur(22px) saturate(1.8); box-shadow:0 4px 24px rgba(0,0,0,.12); padding:0 12px; gap:8px; transition:border-color .2s,box-shadow .2s; }
+    .loc-wrap:focus-within { border-color:var(--c); box-shadow:0 4px 24px rgba(0,0,0,.12),0 0 0 3px var(--glow); }
+    .loc-wrap svg { color:var(--sub); flex-shrink:0; }
+    #locInput { flex:1; background:transparent; border:none; outline:none; font-family:'Plus Jakarta Sans',sans-serif; font-size:.84rem; font-weight:500; color:var(--txt); padding:11px 0; caret-color:var(--c); }
+    #locInput::placeholder { color:var(--sub); }
+    #locClear { background:none; border:none; cursor:pointer; color:var(--sub); font-size:1rem; padding:4px; display:none; transition:color .2s; }
+    #locClear:hover { color:var(--txt); }
+    #locInput:not(:placeholder-shown) ~ #locClear { display:block; }
+    #locDrop { width:100%; margin-top:6px; background:var(--card); border:1px solid var(--bdr); border-radius:12px; backdrop-filter:blur(22px) saturate(1.5); box-shadow:0 8px 32px rgba(0,0,0,.14); overflow:hidden; display:none; }
+    #locDrop.open { display:block; animation:dpIn .16s ease both; }
+    @keyframes dpIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
+    .loc-item { padding:10px 14px; font-size:.8rem; cursor:pointer; font-weight:500; display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--bdr); color:var(--txt); transition:background .15s,color .15s; }
+    .loc-item:last-child { border-bottom:none; }
+    .loc-item:hover { background:var(--glow); color:var(--c); }
+    .loc-item .loc-badge { font-size:.65rem; background:var(--glow); color:var(--c); border-radius:4px; padding:1px 5px; font-weight:600; margin-left:auto; }
+    .loc-item .loc-sub { font-size:.7rem; color:var(--sub); font-weight:400; margin-left:2px; }
+
+    /* GPS Toast */
+    #gpsTst { position:fixed; top:68px; left:50%; transform:translateX(-50%); z-index:400; background:rgba(26,115,232,.92); color:#fff; font-family:'Plus Jakarta Sans',sans-serif; font-size:.76rem; font-weight:500; padding:8px 18px; border-radius:99px; box-shadow:0 4px 16px rgba(0,0,0,.18); transition:opacity .5s; pointer-events:none; display:none; }
+
+    #veh { display:none !important; }
+
+    /* Leaflet controls */
+    .leaflet-control-zoom { border:1px solid var(--bdr) !important; border-radius:10px !important; overflow:hidden; }
+    .leaflet-control-zoom a { color:var(--txt) !important; background:var(--card) !important; border-bottom:1px solid var(--bdr) !important; }
+    .leaflet-control-zoom a:hover { background:var(--glow) !important; color:var(--c) !important; }
+    .leaflet-bar a:last-child { border-bottom:none !important; }
+    .leaflet-control-attribution { background:var(--card) !important; color:var(--sub) !important; font-size:.6rem !important; border-radius:6px 0 0 0 !important; }
+    .leaflet-control-attribution a { color:var(--c) !important; }
+
+    /* ── AI Refresh Button ── */
+    #aiRefreshBtn { display:inline-flex; align-items:center; gap:5px; background:none; border:1px solid var(--bdr); border-radius:8px; padding:4px 10px; font-family:'Plus Jakarta Sans',sans-serif; font-size:.68rem; font-weight:600; color:var(--sub); cursor:pointer; transition:color .2s,border-color .2s,background .2s,transform .15s; white-space:nowrap; }
+    #aiRefreshBtn:hover { color:var(--c); border-color:var(--c); background:var(--glow); }
+    #aiRefreshBtn:active { transform:scale(0.92); }
+    #aiRefreshBtn.spinning svg { animation:aiSpin .7s linear infinite; }
+    #aiRefreshBtn:disabled { opacity:.5; pointer-events:none; }
+    @keyframes aiSpin { to{transform:rotate(360deg)} }
+
+    /* ── Live green dot on Active Users card ── */
+    .live-dot { width:7px; height:7px; border-radius:50%; background:#22c55e; box-shadow:0 0 5px #22c55e; animation:ldot 1.3s ease infinite; flex-shrink:0; display:inline-block; }
+    @keyframes ldot { 0%,100%{opacity:1} 50%{opacity:.2} }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="veh" class="veh"><div id="vehIco"></div><div class="veh-shade"></div></div>
+
+<nav id="nav">
+  <div class="n-left">
+    <a href="signin.html" class="back-btn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M5 12l7-7M5 12l7 7"/></svg>Back
+    </a>
+    <div class="logo">🚦 <span>Traffic<em>IQ</em></span></div>
+  </div>
+  <ul class="nav-links">
+    <li><a href="dashboard.html" class="nl active">Home</a></li>
+    <li><a href="shortcuts.html" class="nl">Shortcuts</a></li>
+    <li><a href="time-taken.html" class="nl">Time Taken</a></li>
+    <li><a href="enter-traffics.html" class="nl">Enter Traffic?</a></li>
+    <li><a href="info-passer.html" class="nl">Info Passer</a></li>
+    <li><a href="entertainment.html" class="nl">Entertainment</a></li>
+    <li><a href="trusted-users.html" class="nl">Trusted Users</a></li>
+  </ul>
+  <div class="n-right">
+    <button id="themeBtn">🌙</button>
+    <button id="burger"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<div id="mob">
+  <a href="dashboard.html">🏠 Home</a><a href="shortcuts.html">⚡ Shortcuts</a>
+  <a href="time-taken.html">⏱ Time Taken</a><a href="enter-traffics.html">🚦 Enter Traffic?</a>
+  <a href="info-passer.html">📡 Info Passer</a><a href="entertainment.html">🎵 Entertainment</a>
+  <a href="trusted-users.html">⭐ Trusted Users</a>
+</div>
+
+<div id="locationSearch">
+  <div class="loc-wrap">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    <input id="locInput" type="text" placeholder="Search location in Bhimavaram…" autocomplete="off" spellcheck="false"/>
+    <button id="locClear" onclick="clearLocSearch()">✕</button>
+  </div>
+  <div id="locDrop"></div>
+</div>
+
+<div id="gpsTst"></div>
+
+<div id="panel">
+  <div class="hero">
+    <p class="hi-txt">🚦 Hi <strong id="uname">there</strong>, find problems in</p>
+    <button id="cityBtn" onclick="goCityRoom()">
+      <span class="cblink"></span><span id="cname">Bhimavaram</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M7 17L17 7M17 7H7M17 7v10"/></svg>
+    </button>
+    <p class="hint">Tap to enter live traffic room</p>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="ch"><span class="lbl">LIVE CONGESTION</span><span class="ldot"></span></div>
+      <div class="cbar"><div id="cfill"></div></div>
+      <div class="ctks"><span>Low</span><span>Moderate</span><span>Heavy</span></div>
+      <div class="clvl" id="clvl">–</div>
+    </div>
+
+    <!-- ACTIVE USERS — real count from Firestore presence collection -->
+    <div class="card">
+      <div class="ch">
+        <span class="lbl">ACTIVE USERS</span>
+        <span class="live-dot"></span>
+      </div>
+      <div class="rnum"><span id="rct">–</span><span class="rsub">online now</span></div>
+      <div id="avs" class="avs"></div>
+    </div>
+
+    <!-- AI SUMMARY -->
+    <div class="card wide">
+      <div class="ch">
+        <span class="lbl">AI SUMMARY</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button id="aiRefreshBtn" onclick="onAiRefreshClick()" title="Refresh AI Summary">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Refresh
+          </button>
+          <span class="ai-tag">GPT</span>
+        </div>
+      </div>
+      <p id="aitxt">Press Refresh to generate AI summary.</p>
+      <div class="ameta"><span>⏱ <strong id="adly">–</strong></span><span>📍 <strong id="aspt">–</strong></span></div>
+    </div>
+  </div>
+
+  <div class="vpick">
+    <button class="vb active" onclick="setV('car',this)">
+      <span class="vb-icon">🚗</span><span class="vb-label">Car</span>
+    </button>
+    <button class="vb" onclick="setV('bike',this)">
+      <span class="vb-icon">🏍️</span><span class="vb-label">Bike</span>
+    </button>
+    <button class="vb" onclick="setV('auto',this)">
+      <span class="vb-icon">🛺</span><span class="vb-label">Auto</span>
+    </button>
+  </div>
+</div>
+
+<div id="vehPreview" class="veh-preview">
+  <div class="veh-preview-inner">
+    <div id="vehPreviewSvg"></div>
+    <div class="veh-preview-label" id="vehPreviewLabel">Car</div>
+  </div>
+</div>
+
+<div id="pageZoom" class="page-zoom">
+  <button id="zoomIn"    title="Zoom In Map">＋</button>
+  <div    id="zoomPct"   class="zoom-pct">Z 15</div>
+  <button id="zoomOut"   title="Zoom Out Map">－</button>
+  <button id="zoomReset" title="Reset Map View">↺</button>
+</div>
+
+<!-- LOCATION PERMISSION OVERLAY -->
+<div id="locOverlay">
+  <div id="locOverlayCard">
+    <div id="locOverlayIcon">📍</div>
+    <h2 id="locOverlayTitle">Allow Location Access</h2>
+    <p id="locOverlayDesc">TrafficIQ needs your location to show live traffic near you and place your vehicle on the map accurately.</p>
+    <button id="locOverlayBtn" onclick="overlayAllowLocation()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+      Allow Location
+    </button>
+    <button id="locOverlaySkip" onclick="overlaySkipLocation()">Continue without location</button>
+    <p id="locOverlayHint">When prompted by your browser, tap <strong>"Allow"</strong> or <strong>"Allow this time"</strong></p>
+    <div id="locOverlayError"></div>
+  </div>
+</div>
+
+<style>
+#locOverlay { position:fixed; inset:0; z-index:9999; background:rgba(10,15,35,0.72); backdrop-filter:blur(18px) saturate(1.4); display:flex; align-items:center; justify-content:center; padding:20px; animation:overlayIn .35s ease both; }
+#locOverlay.hide { animation:overlayOut .4s ease both; pointer-events:none; }
+@keyframes overlayIn  { from{opacity:0} to{opacity:1} }
+@keyframes overlayOut { from{opacity:1} to{opacity:0} }
+#locOverlayCard { background:var(--card); border:1px solid var(--bdr); border-radius:24px; padding:36px 32px 28px; max-width:360px; width:100%; display:flex; flex-direction:column; align-items:center; gap:12px; box-shadow:0 24px 64px rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.08); animation:cardPop .45s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes cardPop { from{transform:scale(0.86) translateY(20px);opacity:0} to{transform:scale(1) translateY(0);opacity:1} }
+#locOverlayIcon { font-size:3rem; line-height:1; animation:iconBounce 2s ease infinite; }
+@keyframes iconBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+#locOverlayTitle { font-family:'Space Grotesk',sans-serif; font-size:1.35rem; font-weight:800; color:var(--txt); text-align:center; margin:0; }
+#locOverlayDesc { font-size:.82rem; color:var(--sub); text-align:center; line-height:1.6; margin:0; }
+#locOverlayBtn { margin-top:6px; display:flex; align-items:center; gap:8px; background:var(--c); color:#fff; border:none; border-radius:12px; padding:13px 28px; font-family:'Plus Jakarta Sans',sans-serif; font-size:.9rem; font-weight:700; cursor:pointer; width:100%; justify-content:center; box-shadow:0 6px 20px rgba(26,115,232,.45); transition:transform .18s,box-shadow .18s; position:relative; overflow:hidden; }
+#locOverlayBtn::after { content:''; position:absolute; inset:0; background:rgba(255,255,255,.15); transform:translateX(-100%); transition:transform .4s; }
+#locOverlayBtn:hover::after { transform:translateX(100%); }
+#locOverlayBtn:hover { transform:scale(1.03); box-shadow:0 10px 28px rgba(26,115,232,.55); }
+#locOverlayBtn:active { transform:scale(0.97); }
+#locOverlayBtn.loading { pointer-events:none; background:var(--sub); }
+#locOverlayBtn.loading::before { content:''; width:16px; height:16px; border:2.5px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; margin-right:8px; }
+@keyframes spin { to{transform:rotate(360deg)} }
+#locOverlaySkip { background:none; border:1px solid var(--bdr); border-radius:10px; padding:9px 20px; font-family:'Plus Jakarta Sans',sans-serif; font-size:.78rem; font-weight:500; color:var(--sub); cursor:pointer; width:100%; transition:color .2s,border-color .2s,background .2s; }
+#locOverlaySkip:hover { color:var(--txt); border-color:var(--txt); background:var(--glow); }
+#locOverlayHint { font-size:.72rem; color:var(--sub); text-align:center; line-height:1.5; margin:0; opacity:.8; }
+#locOverlayHint strong { color:var(--c); }
+#locOverlayError { display:none; background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.25); border-radius:10px; padding:10px 14px; font-size:.76rem; color:#ef4444; text-align:center; width:100%; line-height:1.5; }
+</style>
+
+<!-- ══ FIREBASE — Firestore only (presence via Firestore collection) ══ -->
+<script type="module">
+  import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAnalytics }    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js";
+  import {
+    getFirestore,
+    collection,
+    doc,
+    setDoc,
+    deleteDoc,
+    onSnapshot,
+    serverTimestamp,
+    query,
+    where,
+    orderBy,
+    limit,
+    getDocs
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey:            "AIzaSyAKGbbt_ARGWep8ggPuk_iE6R1xALkmJM8",
+    authDomain:        "trafficiq-3ef14.firebaseapp.com",
+    databaseURL:       "https://trafficiq-3ef14-default-rtdb.firebaseio.com",
+    projectId:         "trafficiq-3ef14",
+    storageBucket:     "trafficiq-3ef14.firebasestorage.app",
+    messagingSenderId: "97313655693",
+    appId:             "1:97313655693:web:fee4304d7815bdceaf0bc4",
+    measurementId:     "G-N8CC0BE6HS"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  getAnalytics(app);
+  const db = getFirestore(app);
+
+  // ── Expose Firestore helpers to dashboard.js ──
+  window.db           = db;
+  window.fsCollection = collection;
+  window.fsDoc        = doc;
+  window.fsSetDoc     = setDoc;
+  window.fsDeleteDoc  = deleteDoc;
+  window.fsOnSnapshot = onSnapshot;
+  window.fsServerTs   = serverTimestamp;
+  window.fsQuery      = query;
+  window.fsWhere      = where;
+  window.collection   = collection;
+  window.doc          = doc;
+  window.query        = query;
+  window.orderBy      = orderBy;
+  window.limit        = limit;
+  window.onSnapshot   = onSnapshot;
+
+  // ════════════════════════════════════════════════
+  //  PRESENCE SYSTEM using Firestore `presence` collection
+  //
+  //  Strategy:
+  //  1. On page load  → write doc: presence/{sessionId}
+  //                     { online: true, lastSeen: serverTimestamp() }
+  //  2. Heartbeat     → update lastSeen every 30s to stay "alive"
+  //  3. beforeunload  → delete the doc so count drops immediately
+  //  4. onSnapshot    → stream count of docs where online==true
+  //     (Firestore doesn't have native onDisconnect like RTDB,
+  //      so we combine heartbeat + cleanup for accuracy)
+  //
+  //  Stale sessions (tab crashed without beforeunload) are
+  //  auto-detected: any doc with lastSeen older than 90s is
+  //  ignored when counting (cleaned up on next heartbeat cycle).
+  // ════════════════════════════════════════════════
+
+  // Generate a unique session ID for this browser tab
+  const sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+  const myDocRef  = doc(db, 'presence', sessionId);
+
+  // Write this session as online
+  async function registerPresence() {
+    try {
+      await setDoc(myDocRef, {
+        online:    true,
+        lastSeen:  serverTimestamp(),
+        sessionId: sessionId
+      });
+    } catch (e) { console.warn('[Presence] register error:', e); }
+  }
+
+  // Heartbeat — keep lastSeen fresh every 30 seconds
+  async function heartbeat() {
+    try {
+      await setDoc(myDocRef, {
+        online:    true,
+        lastSeen:  serverTimestamp(),
+        sessionId: sessionId
+      }, { merge: true });
+    } catch (e) { console.warn('[Presence] heartbeat error:', e); }
+  }
+
+  // Remove this session on tab close / navigation
+  async function removePresence() {
+    try { await deleteDoc(myDocRef); } catch (e) {}
+  }
+
+  // Register immediately
+  registerPresence();
+
+  // Heartbeat every 30s
+  const heartbeatInterval = setInterval(heartbeat, 30000);
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', () => {
+    clearInterval(heartbeatInterval);
+    // Use sendBeacon for reliable cleanup even when tab closes fast
+    // Firestore REST API delete — best-effort on unload
+    const url = `https://firestore.googleapis.com/v1/projects/trafficiq-3ef14/databases/(default)/documents/presence/${sessionId}`;
+    navigator.sendBeacon && navigator.sendBeacon(url); // won't always work for DELETE, but we try
+    removePresence();
+  });
+
+  // Also cleanup on visibility change (mobile browsers)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      heartbeat(); // update lastSeen when going to background
+    } else {
+      heartbeat(); // refresh when coming back
+    }
+  });
+
+  // ── Listen to the entire presence collection ──
+  // Count docs that have lastSeen within the last 90 seconds
+  // (handles stale sessions from crashed tabs)
+  const presenceColRef = collection(db, 'presence');
+
+  onSnapshot(presenceColRef, (snapshot) => {
+    const now       = Date.now();
+    const threshold = 90 * 1000; // 90 seconds — stale if older than this
+    let liveCount   = 0;
+
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (!data.online) return;
+
+      // Check lastSeen — Firestore Timestamp has .toMillis()
+      if (data.lastSeen && data.lastSeen.toMillis) {
+        const age = now - data.lastSeen.toMillis();
+        if (age <= threshold) liveCount++;
+      } else {
+        // If lastSeen not yet written (pending serverTimestamp), count it
+        liveCount++;
+      }
+    });
+
+    // Push to dashboard.js
+    if (typeof window.updateLiveUsers === 'function') {
+      window.updateLiveUsers(liveCount);
+    } else {
+      window.__pendingUserCount = liveCount;
+    }
+  }, (err) => {
+    console.warn('[Presence] snapshot error:', err);
+  });
+</script>
+
+<script src="dashboard.js"></script>
+</body>
+</html>

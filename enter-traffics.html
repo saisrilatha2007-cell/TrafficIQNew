@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>TrafficIQ — Time Taken</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap"
+    rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link rel="stylesheet" href="enter-traffics.css" />
+</head>
+
+<body>
+
+  <canvas id="bg"></canvas>
+
+  <!-- TOP BAR -->
+  <header id="topbar">
+    <div class="tb-l">
+      <a href="dashboard.html" class="back-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round">
+          <path d="M19 12H5M5 12l7-7M5 12l7 7" />
+        </svg>Back
+      </a>
+      <div class="tb-brand">
+        <span class="live-badge"><span class="ldot"></span>LIVE</span>
+        <h1>Time Taken · <em id="tbCity">Mumbai</em></h1>
+      </div>
+    </div>
+    <div class="tb-r">
+      <div class="tb-stat"><strong id="tbVotes">0</strong><span>total votes</span></div>
+      <div class="tb-stat"><strong id="tbOnline">0</strong><span>online</span></div>
+      <button id="panTog" class="icon-btn" title="Toggle Panel">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="18" rx="1" />
+          <rect x="14" y="3" width="7" height="18" rx="1" />
+        </svg>
+      </button>
+      <button id="themeBtn" class="icon-btn">🌙</button>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- ══ LEFT PANEL 40% — Decision Intelligence ══ -->
+    <aside id="panel">
+      <div class="panel-inner">
+
+        <!-- Primary Question -->
+        <div class="question-block">
+          <p class="q-label">PRIMARY QUESTION</p>
+          <h2 class="q-text">Enter the<br />Traffic?</h2>
+        </div>
+
+        <!-- Majority Decision -->
+        <div class="majority-block">
+          <p class="section-label">MAJORITY DECISION</p>
+          <div class="majority-cards">
+            <div class="maj-card go" id="majGo">
+              <div class="maj-glow"></div>
+              <span class="maj-icon">✓</span>
+              <span class="maj-label">YES · GO</span>
+              <span class="maj-priority" id="goPriority">Highest Priority</span>
+            </div>
+            <div class="maj-card avoid" id="majAvoid">
+              <div class="maj-glow"></div>
+              <span class="maj-icon">✕</span>
+              <span class="maj-label">NO · AVOID</span>
+              <span class="maj-priority" id="avoidPriority">Highest Priority</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vote Bar -->
+        <div class="votebar-block">
+          <p class="section-label">COMMUNITY VOTE</p>
+          <div class="votebar-wrap">
+            <div class="vb-row">
+              <span class="vb-lbl go-txt">YES</span>
+              <span class="vb-pct go-txt" id="yesPct">0%</span>
+            </div>
+            <div class="vb-track">
+              <div class="vb-fill-go" id="vbGo" style="width:0%"></div>
+              <div class="vb-fill-no" id="vbNo" style="width:0%"></div>
+            </div>
+            <div class="vb-row">
+              <span class="vb-lbl avoid-txt">NO</span>
+              <span class="vb-pct avoid-txt" id="noPct">0%</span>
+            </div>
+          </div>
+          <p class="vb-total"><span id="totalVotes">0</span> total votes</p>
+        </div>
+
+        <!-- Risk Score -->
+        <div class="risk-block">
+          <p class="section-label">RISK SCORE</p>
+          <div class="risk-ring-wrap">
+            <svg class="risk-svg" viewBox="0 0 120 120">
+              <defs>
+                <linearGradient id="riskGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#22c55e" id="riskStop1" />
+                  <stop offset="100%" stop-color="#22c55e" id="riskStop2" />
+                </linearGradient>
+              </defs>
+              <circle class="risk-bg" cx="60" cy="60" r="50" />
+              <circle class="risk-fill" id="riskFill" cx="60" cy="60" r="50" stroke-dasharray="314"
+                stroke-dashoffset="314" />
+            </svg>
+            <div class="risk-center">
+              <span class="risk-num" id="riskNum">0</span>
+              <span class="risk-pct">/100</span>
+            </div>
+          </div>
+          <p class="risk-label-txt" id="riskLabelTxt">Calculating…</p>
+        </div>
+
+        <!-- Recommendation Badge -->
+        <div class="rec-block" id="recBlock">
+          <div class="rec-badge" id="recBadge">
+            <span class="rec-icon" id="recIcon">—</span>
+            <span class="rec-text" id="recText">Awaiting data</span>
+          </div>
+        </div>
+
+        <!-- Top Reason -->
+        <div class="reason-block" id="reasonBlock">
+          <p class="section-label">TOP REASON</p>
+          <div class="reason-card" id="reasonCard">
+            <span class="reason-dot" id="reasonDot"></span>
+            <span class="reason-txt" id="reasonTxt">Waiting for community input…</span>
+          </div>
+        </div>
+
+        <!-- GO / AVOID Buttons -->
+        <div class="vote-btns">
+          <button class="vote-btn go-btn" id="goBtn">
+            <span>GO</span>
+            <div class="ripple-c"></div>
+          </button>
+
+          <button class="vote-btn avoid-btn" id="avoidBtn">
+            <span>AVOID</span>
+            <div class="ripple-c"></div>
+          </button>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- ══ RIGHT PANEL 60% — Live Chat ══ -->
+    <main class="stream">
+
+      <button id="scrollBtn" class="scroll-btn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round">
+          <path d="M12 5v14M5 12l7 7 7-7" />
+        </svg>
+        New messages ↓
+      </button>
+
+      <!-- Feed header -->
+      <div class="feed-hdr">
+        <span class="feed-hdr-title">LIVE COMMUNITY CHAT</span>
+        <span class="feed-hdr-sub" id="feedSub">Western Express Hwy, Andheri · Real-time</span>
+      </div>
+
+      <div class="feed" id="feed"></div>
+
+      <!-- DOCK -->
+      <div class="dock">
+        <div class="triggers">
+          <button class="trig go-trig" data-msg="Traffic looks manageable right now." data-vote="go">✅
+            Manageable</button>
+          <button class="trig avoid-trig" data-msg="Accident ahead — avoid this route." data-vote="avoid">🚗
+            Accident</button>
+          <button class="trig go-trig" data-msg="Road clearing soon, should be fine." data-vote="go">🟢 Clearing
+            Soon</button>
+          <button class="trig avoid-trig" data-msg="Better to avoid — heavy congestion." data-vote="avoid">🔴 Better
+            Avoid</button>
+        </div>
+        <div class="input-row">
+          <div class="chat-wrap">
+            <input id="chatInp" type="text" placeholder="Share real-time road conditions…" autocomplete="off" />
+            <button class="send-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            </button>
+          </div>
+          <!-- Quick Nav -->
+          <div class="qnav">
+            <a href="shortcuts.html" class="qi" data-tip="Shortcuts"><svg width="14" height="14" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg></a>
+            <a href="time-taken.html" class="qi qi-active" data-tip="Time Taken"><svg width="14" height="14"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg></a>
+            <a href="enter-traffics.html" class="qi" data-tip="Enter Traffic"><svg width="14" height="14"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+              </svg></a>
+            <a href="info-passer.html" class="qi" data-tip="Info Passer"><svg width="14" height="14" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg></a>
+            <a href="entertainment.html" class="qi" data-tip="Entertainment"><svg width="14" height="14"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg></a>
+            <a href="trusted-users.html" class="qi" data-tip="Trusted Users"><svg width="14" height="14"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg></a>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="mobOverlay"></div>
+
+  <script type="module" src="enter-traffics.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>TrafficIQ — Time Taken</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap"
+    rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link rel="stylesheet" href="time-taken.css" />
+</head>
+
+<body>
+
+  <canvas id="bg"></canvas>
+
+  <header id="topbar">
+    <div class="tb-l">
+      <a href="dashboard.html" class="back-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round">
+          <path d="M19 12H5M5 12l7-7M5 12l7 7" />
+        </svg>Back
+      </a>
+      <div class="tb-brand">
+        <span class="live-badge"><span class="ldot"></span>LIVE</span>
+        <h1>Time Taken · <em id="tbCity">Loading…</em></h1>
+      </div>
+    </div>
+    <div class="tb-r">
+      <div class="tb-stat"><strong id="tbTotal">0</strong><span>total votes</span></div>
+      <div class="tb-stat"><strong id="tbOnline">0</strong><span>online</span></div>
+      <button id="panTog" class="icon-btn" title="Toggle Panel">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="18" rx="1" />
+          <rect x="14" y="3" width="7" height="18" rx="1" />
+        </svg>
+      </button>
+      <button id="themeBtn" class="icon-btn">🌙</button>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- LEFT PANEL 25% -->
+    <aside id="panel">
+      <div class="panel-inner">
+
+        <p class="panel-title">⏱ DELAY POLL</p>
+
+        <!-- Poll Card: 1+ Hour -->
+        <div class="poll-card" id="pc-long" data-key="long">
+          <div class="winner-badge" id="wb-long">🏆 Highest</div>
+          <div class="poll-top">
+            <span class="poll-ico">🔴</span>
+            <div class="poll-info">
+              <span class="poll-label">More than 1 hr</span>
+              <span class="poll-sub">Severe delay</span>
+            </div>
+            <span class="poll-pulse red-pulse" id="pd-long"></span>
+          </div>
+          <div class="poll-bar-track">
+            <div class="poll-bar-fill red" id="pb-long" style="width:0%"></div>
+          </div>
+          <div class="poll-footer">
+            <span class="poll-votes" id="pv-long">0 votes</span>
+            <span class="poll-pct red-txt" id="pp-long">0%</span>
+          </div>
+        </div>
+
+        <!-- Poll Card: 30 mins -->
+        <div class="poll-card" id="pc-med" data-key="med">
+          <div class="winner-badge amber" id="wb-med">🏆 Highest</div>
+          <div class="poll-top">
+            <span class="poll-ico">🟡</span>
+            <div class="poll-info">
+              <span class="poll-label">30 minutes</span>
+              <span class="poll-sub">Moderate delay</span>
+            </div>
+            <span class="poll-pulse amber-pulse" id="pd-med"></span>
+          </div>
+          <div class="poll-bar-track">
+            <div class="poll-bar-fill amber" id="pb-med" style="width:0%"></div>
+          </div>
+          <div class="poll-footer">
+            <span class="poll-votes" id="pv-med">0 votes</span>
+            <span class="poll-pct amber-txt" id="pp-med">0%</span>
+          </div>
+        </div>
+
+        <!-- Poll Card: <10 mins -->
+        <div class="poll-card" id="pc-short" data-key="short">
+          <div class="winner-badge green" id="wb-short">🏆 Highest</div>
+          <div class="poll-top">
+            <span class="poll-ico">🟢</span>
+            <div class="poll-info">
+              <span class="poll-label">Less than 10 min</span>
+              <span class="poll-sub">Minimal delay</span>
+            </div>
+            <span class="poll-pulse green-pulse" id="pd-short"></span>
+          </div>
+          <div class="poll-bar-track">
+            <div class="poll-bar-fill green" id="pb-short" style="width:0%"></div>
+          </div>
+          <div class="poll-footer">
+            <span class="poll-votes" id="pv-short">0 votes</span>
+            <span class="poll-pct green-txt" id="pp-short">0%</span>
+          </div>
+        </div>
+
+        <!-- Trend Arrow -->
+        <div class="trend-block">
+          <p class="section-label">DELAY TREND</p>
+          <div class="trend-row">
+            <div class="trend-arrow-wrap" id="trendArrowWrap">
+              <svg id="trendSvg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="2.8"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
+            </div>
+            <div>
+              <p class="trend-label" id="trendLabel">Calculating…</p>
+              <p class="trend-sub" id="trendSub">Awaiting votes</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mini Graph -->
+        <div class="graph-block">
+          <p class="section-label">VOTE ACTIVITY</p>
+          <div class="graph-wrap">
+            <canvas id="graphCanvas"></canvas>
+            <div class="graph-glow-overlay"></div>
+          </div>
+        </div>
+
+        <!-- Avg Estimate -->
+        <div class="avg-block">
+          <p class="section-label">COMMUNITY ESTIMATE</p>
+          <div class="avg-row">
+            <span class="avg-num" id="avgNum">—</span>
+            <span class="avg-unit">mins avg</span>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- RIGHT STREAM 75% -->
+    <main class="stream">
+
+      <button id="scrollBtn" class="scroll-btn" onclick="scrollToBottom()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round">
+          <path d="M12 5v14M5 12l7 7 7-7" />
+        </svg>
+        New messages ↓
+      </button>
+
+      <div class="feed-hdr">
+        <span class="feed-hdr-title">LIVE COMMUNITY CHAT</span>
+        <span class="feed-hdr-sub" id="feedHdrSub">Loading city…</span>
+      </div>
+
+      <!-- Inline Poll strip -->
+      <div class="inline-poll">
+        <span class="ip-label">How long is your delay?</span>
+        <div class="ip-btns">
+          <button class="ip-btn ip-red" onclick="castVote('long',  this)">🔴 1+ Hour</button>
+          <button class="ip-btn ip-amber" onclick="castVote('med',   this)">🟡 30 Mins</button>
+          <button class="ip-btn ip-green" onclick="castVote('short', this)">🟢 &lt;10 Min</button>
+        </div>
+      </div>
+
+      <div class="feed" id="feed"></div>
+
+      <!-- DOCK -->
+      <div class="dock">
+        <div class="triggers">
+          <button class="trig" data-msg="⏱ +10 mins added to my estimate — traffic still crawling." data-vote="med"
+            onclick="trigSend(this)">⏱ +10 mins</button>
+          <button class="trig" data-msg="⏱ 20 more minutes at least — barely moved since last update." data-vote="med"
+            onclick="trigSend(this)">⏱ 20 mins more</button>
+          <button class="trig" data-msg="⏱ 30+ more minutes — complete standstill at the junction." data-vote="long"
+            onclick="trigSend(this)">⏱ 30 mins more</button>
+          <button class="trig trig-green" data-msg="✅ Almost through! Less than 10 minutes from the clear zone."
+            data-vote="short" onclick="trigSend(this)">✅ Almost clear</button>
+        </div>
+        <div class="input-row">
+          <div class="chat-wrap">
+            <input id="chatInp" type="text" placeholder="Share your current delay estimate…" autocomplete="off" />
+            <button class="send-btn" onclick="sendMsg()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            </button>
+          </div>
+          <div class="qnav">
+            <a href="shortcuts.html" class="qi" data-tip="Shortcuts"><svg width="14" height="14" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg></a>
+            <a href="time-taken.html" class="qi qi-active" data-tip="Time Taken"><svg width="14" height="14"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg></a>
+            <a href="enter-traffics.html" class="qi" data-tip="Enter Traffic"><svg width="14" height="14"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+              </svg></a>
+            <a href="info-passer.html" class="qi" data-tip="Info Passer"><svg width="14" height="14" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg></a>
+            <a href="entertainment.html" class="qi" data-tip="Entertainment"><svg width="14" height="14"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg></a>
+            <a href="trusted-users.html" class="qi" data-tip="Trusted Users"><svg width="14" height="14"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg></a>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="mobOverlay" onclick="togglePanel()"></div>
+
+  <!-- ══ FIREBASE INIT ══ -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js";
+    import {
+      getFirestore,
+      collection, addDoc, onSnapshot,
+      query, orderBy, limit, where,
+      doc, setDoc, deleteDoc,
+      serverTimestamp, increment
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAKGbbt_ARGWep8ggPuk_iE6R1xALkmJM8",
+      authDomain: "trafficiq-3ef14.firebaseapp.com",
+      databaseURL: "https://trafficiq-3ef14-default-rtdb.firebaseio.com",
+      projectId: "trafficiq-3ef14",
+      storageBucket: "trafficiq-3ef14.firebasestorage.app",
+      messagingSenderId: "97313655693",
+      appId: "1:97313655693:web:fee4304d7815bdceaf0bc4",
+      measurementId: "G-N8CC0BE6HS"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    getAnalytics(app);
+
+    window._db = getFirestore(app);
+    window._firestoreApi = {
+      collection, addDoc, onSnapshot,
+      query, orderBy, limit, where,
+      doc, setDoc, deleteDoc,
+      serverTimestamp, increment
+    };
+  </script>
+
+  <script src="time-taken.js"></script>
+</body>
+</html>

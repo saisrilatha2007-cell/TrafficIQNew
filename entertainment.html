@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>TrafficIQ — Entertainment</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link rel="stylesheet" href="entertainment.css"/>
+
+  <!-- ══ FIREBASE INIT ══ -->
+  <script type="module">
+    import { initializeApp }   from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+    import { getAnalytics }    from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
+    import {
+      getFirestore, collection, doc, setDoc, getDoc, getDocs,
+      query, where, orderBy, onSnapshot, serverTimestamp, updateDoc, increment
+    } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey:            "AIzaSyAKGbbt_ARGWep8ggPuk_iE6R1xALkmJM8",
+      authDomain:        "trafficiq-3ef14.firebaseapp.com",
+      databaseURL:       "https://trafficiq-3ef14-default-rtdb.firebaseio.com",
+      projectId:         "trafficiq-3ef14",
+      storageBucket:     "trafficiq-3ef14.firebasestorage.app",
+      messagingSenderId: "97313655693",
+      appId:             "1:97313655693:web:fee4304d7815bdceaf0bc4",
+      measurementId:     "G-N8CC0BE6HS"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    getAnalytics(app);
+    const db = getFirestore(app);
+
+    window.db              = db;
+    window.collection      = collection;
+    window.doc             = doc;
+    window.setDoc          = setDoc;
+    window.getDoc          = getDoc;
+    window.getDocs         = getDocs;
+    window.query           = query;
+    window.orderBy         = orderBy;
+    window.onSnapshot      = onSnapshot;
+    window.where           = where;
+    window.serverTimestamp = serverTimestamp;
+    window.updateDoc       = updateDoc;
+    window.increment       = increment;
+
+    window._firebaseReady = true;
+    window.dispatchEvent(new Event('firebaseReady'));
+  </script>
+
+  <style>
+    /* ══ POST FAB ══ */
+    #postFab {
+      position: fixed; bottom: 28px; right: 20px; z-index: 300;
+      width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
+      background: linear-gradient(135deg, var(--c), #7b61ff); color: #fff;
+      font-size: 1.5rem; display: grid; place-items: center;
+      box-shadow: 0 4px 20px rgba(0,207,255,0.35), 0 2px 8px rgba(0,0,0,0.4);
+      transition: transform 0.22s cubic-bezier(.4,0,.2,1), box-shadow 0.22s;
+      opacity: 0; transform: scale(0.6);
+    }
+    #postFab.fab-in { animation: fabPop 0.45s cubic-bezier(.34,1.56,.64,1) 0.6s forwards; }
+    @keyframes fabPop { to { opacity: 1; transform: scale(1); } }
+    #postFab:hover {
+      transform: scale(1.12) rotate(8deg);
+      box-shadow: 0 6px 28px rgba(0,207,255,0.5), 0 3px 10px rgba(0,0,0,0.4);
+    }
+    #postFab:active { transform: scale(0.9); }
+    #postFab::before {
+      content: 'New Post'; position: absolute; right: 60px;
+      background: var(--panel); color: var(--txt);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.72rem; font-weight: 600;
+      padding: 4px 10px; border-radius: 8px; border: 1px solid var(--bdr);
+      white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    #postFab:hover::before { opacity: 1; }
+
+    /* ══ POST MODAL OVERLAY ══ */
+    #postModalOverlay {
+      position: fixed; inset: 0; z-index: 450;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(8px);
+      display: none; align-items: flex-end; justify-content: center;
+    }
+    #postModalOverlay.open { display: flex; }
+
+    /* ══ POST MODAL BOX ══ */
+    #postModalBox {
+      width: 100%; max-width: 560px;
+      background: var(--panel); border-top: 1px solid var(--bdr);
+      border-radius: 20px 20px 0 0; padding: 18px 16px 32px;
+      display: flex; flex-direction: column; gap: 12px;
+      animation: slideUpPost 0.35s cubic-bezier(.4,0,.2,1);
+    }
+    @keyframes slideUpPost { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    .pm-header { display: flex; align-items: center; justify-content: space-between; }
+    .pm-title { font-family: 'Space Grotesk', sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--txt); }
+    .pm-close {
+      width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--bdr);
+      background: rgba(255,255,255,0.05); cursor: pointer; color: var(--sub);
+      font-size: 0.75rem; display: grid; place-items: center;
+      transition: background 0.2s, color 0.2s;
+    }
+    .pm-close:hover { background: rgba(239,68,68,0.15); color: var(--cr); }
+
+    #postText {
+      width: 100%; min-height: 90px; resize: vertical;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--bdr);
+      border-radius: 12px; color: var(--txt);
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.85rem;
+      line-height: 1.55; padding: 11px 13px; outline: none;
+      caret-color: var(--c); transition: border-color 0.22s, box-shadow 0.22s;
+    }
+    #postText::placeholder { color: var(--sub); }
+    #postText:focus { border-color: var(--c); box-shadow: 0 0 0 3px var(--glow); }
+
+    .pm-mood-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .pm-mood-label { font-size: 0.62rem; color: var(--sub); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; flex-shrink: 0; }
+    .pm-mood-chip {
+      padding: 3px 10px; border-radius: 99px; border: 1px solid var(--bdr);
+      background: rgba(255,255,255,0.04); color: var(--sub);
+      font-size: 0.7rem; font-weight: 500; cursor: pointer;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      transition: color 0.2s, border-color 0.2s, background 0.2s, transform 0.15s;
+    }
+    .pm-mood-chip:hover { color: var(--c); border-color: var(--c); background: var(--glow); transform: translateY(-2px); }
+    .pm-mood-chip.active { color: var(--c); border-color: var(--c); background: var(--glow); font-weight: 600; }
+
+    .pm-photo-row { display: flex; align-items: center; gap: 10px; }
+    .pm-photo-btn {
+      display: flex; align-items: center; gap: 6px; padding: 7px 14px;
+      border-radius: 99px; border: 1px dashed var(--bdr);
+      background: rgba(255,255,255,0.03); color: var(--sub);
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.73rem; font-weight: 500; cursor: pointer;
+      transition: color 0.2s, border-color 0.2s, background 0.2s;
+    }
+    .pm-photo-btn:hover { color: var(--c); border-color: var(--c); background: var(--glow); }
+    #photoFileInput { display: none; }
+
+    #photoPreviewWrap {
+      display: none; position: relative; border-radius: 11px;
+      overflow: hidden; border: 1px solid var(--bdr); max-height: 180px;
+    }
+    #photoPreviewWrap.has-photo { display: block; }
+    #photoPreview { width: 100%; max-height: 180px; object-fit: cover; display: block; }
+    #removePhoto {
+      position: absolute; top: 6px; right: 6px; width: 24px; height: 24px;
+      border-radius: 50%; border: none; background: rgba(0,0,0,0.6); color: #fff;
+      font-size: 0.7rem; cursor: pointer; display: grid; place-items: center;
+      transition: background 0.2s;
+    }
+    #removePhoto:hover { background: var(--cr); }
+
+    .pm-bottom { display: flex; align-items: center; justify-content: space-between; }
+    #postCharCount { font-size: 0.65rem; color: var(--sub); }
+    #postCharCount.warn { color: var(--ca); }
+    #postCharCount.danger { color: var(--cr); }
+    #postSubmitBtn {
+      padding: 9px 24px; border-radius: 99px; border: none;
+      background: linear-gradient(135deg, var(--c), #7b61ff); color: #fff;
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.8rem;
+      font-weight: 700; cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+    }
+    #postSubmitBtn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px var(--glow); }
+    #postSubmitBtn:active { transform: scale(0.92); }
+    #postSubmitBtn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    #postSubmitBtn.submitting::after {
+      content: ''; display: inline-block; width: 10px; height: 10px;
+      border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
+      border-radius: 50%; margin-left: 7px; vertical-align: middle;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ══ ENT POST CARDS ══ */
+    .ent-post-card {
+      background: var(--card); border: 1px solid var(--bdr);
+      border-radius: var(--r); overflow: hidden;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.28);
+      backdrop-filter: blur(16px) saturate(1.4);
+      animation: cardIn 0.38s cubic-bezier(.4,0,.2,1) forwards;
+      opacity: 0; transform: translateY(14px) scale(0.98);
+      transition: border-color 0.26s, box-shadow 0.26s, transform 0.26s;
+    }
+    .ent-post-card:hover {
+      border-color: rgba(0,207,255,0.28);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.32), 0 0 14px var(--glow);
+      transform: translateY(-3px);
+    }
+    .epc-header { display: flex; align-items: center; gap: 9px; padding: 12px 14px 8px; }
+    .epc-av {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(0,207,255,0.18); border: 1.5px solid rgba(0,207,255,0.4);
+      color: var(--c); font-size: 0.76rem; font-weight: 700;
+      display: grid; place-items: center; flex-shrink: 0;
+    }
+    .epc-meta { flex: 1; }
+    .epc-name { font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem; font-weight: 700; color: var(--txt); }
+    .epc-sub { font-size: 0.63rem; color: var(--sub); margin-top: 1px; }
+    .epc-mood-badge {
+      font-size: 0.6rem; font-weight: 700; padding: 2px 8px;
+      border-radius: 99px; background: var(--glow); color: var(--c);
+      border: 1px solid var(--bdr); flex-shrink: 0;
+    }
+    .epc-body { padding: 2px 14px 10px; font-size: 0.88rem; color: var(--txt); line-height: 1.6; }
+    .epc-photo {
+      width: 100%; max-height: 260px; object-fit: cover; display: block;
+      border-top: 1px solid var(--bdr); border-bottom: 1px solid var(--bdr);
+    }
+    .epc-footer { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-top: 1px solid var(--bdr); }
+    .epc-action {
+      display: flex; align-items: center; gap: 5px; font-size: 0.72rem;
+      color: var(--sub); cursor: pointer; background: none; border: none;
+      padding: 5px 8px; border-radius: 8px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      transition: color 0.2s, background 0.2s, transform 0.15s;
+    }
+    .epc-action:hover { color: var(--c); background: var(--glow); transform: translateY(-2px); }
+    .epc-action.liked { color: var(--cr); }
+    .epc-action svg { transition: transform 0.2s; }
+    .epc-action:hover svg { transform: scale(1.2); }
+  </style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+
+<!-- TOP BAR -->
+<header id="topbar">
+  <div class="tb-l">
+    <a href="dashboard.html" class="back-btn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M5 12l7-7M5 12l7 7"/></svg>Back
+    </a>
+    <div class="tb-brand">
+      <span class="live-badge"><span class="ldot"></span>LIVE</span>
+      <h1>Entertainment · <em id="cityLabel">…</em></h1>
+    </div>
+  </div>
+  <div class="tb-r">
+    <div class="tb-stat"><strong id="tbPosts">0</strong><span>posts</span></div>
+    <div class="tb-stat"><strong id="tbVibes">0</strong><span>vibes</span></div>
+    <button id="themeBtn" class="icon-btn">🌙</button>
+  </div>
+</header>
+
+<!-- MOOD STRIP -->
+<div id="moodStrip">
+  <span class="mood-label">Your mood:</span>
+  <button class="mood-btn" data-mood="stuck"      onclick="setMood(this)">😤 Stuck</button>
+  <button class="mood-btn" data-mood="frustrated" onclick="setMood(this)">😠 Frustrated</button>
+  <button class="mood-btn" data-mood="chill"      onclick="setMood(this)">😎 Chill</button>
+  <button class="mood-btn" data-mood="moving"     onclick="setMood(this)">🚗 Moving</button>
+</div>
+
+<!-- MAIN FEED -->
+<main id="feedWrap">
+  <div id="feed"></div>
+  <div id="loadMoreWrap"><button id="loadMoreBtn" onclick="loadMore()">Load more ↓</button></div>
+</main>
+
+<!-- SHARE POPUP -->
+<div id="sharePopup">
+  <div class="share-box">
+    <div class="share-header">
+      <span>🔗 Share this post</span>
+      <button class="share-close" onclick="closeShare()">✕</button>
+    </div>
+    <div class="share-link-row">
+      <input id="shareLink" type="text" readonly onclick="this.select()"/>
+      <button id="shareCopyBtn" onclick="copyShareLink()">Copy</button>
+    </div>
+    <p class="share-hint">Click the link to select, or hit Copy</p>
+  </div>
+</div>
+<div id="shareOverlay" onclick="closeShare()"></div>
+
+<!-- COMMENT MODAL -->
+<div id="commentModal" class="modal-overlay" onclick="closeCommentModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">💬 Comments</span>
+      <button class="modal-close" onclick="closeCommentModal()">✕</button>
+    </div>
+    <div class="modal-comments" id="modalComments"></div>
+    <div class="modal-input-row">
+      <input id="modalInp" type="text" placeholder="Add a comment…" autocomplete="off"/>
+      <button onclick="submitComment()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FLOATING ACTION BUTTON ══ -->
+<button id="postFab" aria-label="Create a post" onclick="openPostModal()">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+</button>
+
+<!-- ══ POST MODAL ══ -->
+<div id="postModalOverlay" onclick="handlePostOverlayClick(event)">
+  <div id="postModalBox">
+    <div class="pm-header">
+      <span class="pm-title">✍️ Create a Post</span>
+      <button class="pm-close" onclick="closePostModal()">✕</button>
+    </div>
+    <textarea id="postText" maxlength="280"
+      placeholder="What's happening on the road? Share a meme, update, vibe…"
+      oninput="onPostTextInput()"></textarea>
+    <div class="pm-mood-row">
+      <span class="pm-mood-label">Mood:</span>
+      <button class="pm-mood-chip active" data-mood="stuck"      onclick="selectPostMood(this)">😤 Stuck</button>
+      <button class="pm-mood-chip"        data-mood="frustrated" onclick="selectPostMood(this)">😠 Frustrated</button>
+      <button class="pm-mood-chip"        data-mood="chill"      onclick="selectPostMood(this)">😎 Chill</button>
+      <button class="pm-mood-chip"        data-mood="moving"     onclick="selectPostMood(this)">🚗 Moving</button>
+    </div>
+    <div class="pm-photo-row">
+      <label class="pm-photo-btn" for="photoFileInput">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        Add Photo
+      </label>
+      <input type="file" id="photoFileInput" accept="image/*" onchange="onPhotoSelected(event)"/>
+    </div>
+    <div id="photoPreviewWrap">
+      <img id="photoPreview" alt="Preview"/>
+      <button id="removePhoto" onclick="removePostPhoto()" title="Remove photo">✕</button>
+    </div>
+    <div class="pm-bottom">
+      <span id="postCharCount">0 / 280</span>
+      <button id="postSubmitBtn" onclick="submitPost()" disabled>Post</button>
+    </div>
+  </div>
+</div>
+
+<script src="entertainment.js"></script>
+
+<!-- ══ POST FAB + ALL POST LOGIC ══ -->
+<script>
+(function () {
+  'use strict';
+
+  let postMood     = 'stuck';
+  let photoDataUrl = null;
+  const MAX_CHARS  = 280;
+
+  /* ── Liked posts stored in localStorage so heart state survives refresh ── */
+  const LIKED_KEY = 'tiq-liked-posts';
+  function getLikedSet() {
+    try { return new Set(JSON.parse(localStorage.getItem(LIKED_KEY) || '[]')); }
+    catch { return new Set(); }
+  }
+  function saveLikedSet(set) {
+    localStorage.setItem(LIKED_KEY, JSON.stringify([...set]));
+  }
+
+  /* FAB pop-in */
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('postFab').classList.add('fab-in');
+  });
+
+  /* ── Open / Close modal ── */
+  window.openPostModal = function () {
+    const activeMoodBtn = document.querySelector('.mood-btn.active');
+    if (activeMoodBtn) {
+      const mood = activeMoodBtn.dataset.mood;
+      postMood = mood;
+      document.querySelectorAll('.pm-mood-chip').forEach(b => {
+        b.classList.toggle('active', b.dataset.mood === mood);
+      });
+    } else {
+      postMood = 'stuck';
+      document.querySelectorAll('.pm-mood-chip').forEach(b => {
+        b.classList.toggle('active', b.dataset.mood === 'stuck');
+      });
+    }
+    document.getElementById('postModalOverlay').classList.add('open');
+    setTimeout(() => document.getElementById('postText').focus(), 320);
+    gsap.to('#postFab', { rotate: 45, duration: 0.25, ease: 'power2.out' });
+  };
+
+  window.closePostModal = function () {
+    document.getElementById('postModalOverlay').classList.remove('open');
+    gsap.to('#postFab', { rotate: 0, duration: 0.25, ease: 'power2.out' });
+  };
+
+  window.handlePostOverlayClick = function (e) {
+    if (e.target === document.getElementById('postModalOverlay')) closePostModal();
+  };
+
+  /* ── Mood chip ── */
+  window.selectPostMood = function (btn) {
+    document.querySelectorAll('.pm-mood-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    postMood = btn.dataset.mood;
+  };
+
+  /* ── Char counter ── */
+  window.onPostTextInput = function () {
+    const len     = document.getElementById('postText').value.length;
+    const counter = document.getElementById('postCharCount');
+    counter.textContent = `${len} / ${MAX_CHARS}`;
+    counter.className   = len > 240 ? 'danger' : len > 200 ? 'warn' : '';
+    document.getElementById('postSubmitBtn').disabled = (len === 0);
+  };
+
+  /* ── Photo ── */
+  window.onPhotoSelected = function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { alert('Please select an image file.'); return; }
+    if (file.size > 5 * 1024 * 1024)    { alert('Image must be under 5 MB.');    return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      photoDataUrl = ev.target.result;
+      document.getElementById('photoPreview').src = photoDataUrl;
+      document.getElementById('photoPreviewWrap').classList.add('has-photo');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.removePostPhoto = function () {
+    photoDataUrl = null;
+    document.getElementById('photoPreview').src = '';
+    document.getElementById('photoPreviewWrap').classList.remove('has-photo');
+    document.getElementById('photoFileInput').value = '';
+  };
+
+  /* ── Submit Post ── */
+  window.submitPost = async function () {
+    const txt = document.getElementById('postText').value.trim();
+    if (!txt) return;
+
+    const submitBtn = document.getElementById('postSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.classList.add('submitting');
+    submitBtn.textContent = 'Posting';
+
+    const moodEmoji = { stuck: '😤', frustrated: '😠', chill: '😎', moving: '🚗' };
+    const author = (window.S && S.name) ? S.name : (localStorage.getItem('tiq-name') || 'You');
+    const city   = (window.S && S.city && S.city !== 'Unknown')
+      ? S.city
+      : (document.getElementById('cityLabel')?.textContent?.trim() || localStorage.getItem('tiq-city') || 'Bhimavaram Railway Station');
+
+    try {
+      const colRef = window.collection(window.db, 'entertainment_posts');
+      const newRef = window.doc(colRef);
+      await window.setDoc(newRef, {
+        author,
+        city,
+        text:      txt,
+        mood:      postMood.toLowerCase().trim(),
+        moodEmoji: moodEmoji[postMood] || '😤',
+        photo:     photoDataUrl || null,
+        likes:     0,
+        comments:  0,
+        timestamp: window.serverTimestamp(),
+      });
+
+      document.getElementById('postText').value            = '';
+      document.getElementById('postCharCount').textContent = '0 / 280';
+      document.getElementById('postCharCount').className   = '';
+      removePostPhoto();
+      const _stripMood = document.querySelector('.mood-btn.active')?.dataset.mood || 'stuck';
+      postMood = _stripMood;
+      document.querySelectorAll('.pm-mood-chip').forEach(b => {
+        b.classList.toggle('active', b.dataset.mood === _stripMood);
+      });
+
+      closePostModal();
+      gsap.fromTo('#postFab', { scale: 0.8 }, { scale: 1, duration: 0.4, ease: 'back.out(2.5)' });
+
+    } catch (err) {
+      console.error('Post failed:', err);
+      alert('Post failed: ' + err.message);
+    } finally {
+      submitBtn.classList.remove('submitting');
+      submitBtn.textContent = 'Post';
+      submitBtn.disabled    = false;
+    }
+  };
+
+  /* ── Render post card ──
+     Reads liked state from localStorage so hearts are correct on refresh.
+  ── */
+  window.renderEntPost = function (data) {
+    const feedEl = document.getElementById('feed');
+    if (data.id && document.querySelector(`.ent-post-card[data-id="${data.id}"]`)) return;
+
+    const likedSet = getLikedSet();
+    const isLiked  = data.id && likedSet.has(data.id);
+
+    const init = (data.author || 'AN').substring(0, 2).toUpperCase();
+    const when = data.timestamp instanceof Date
+      ? data.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : (data.timestamp && data.timestamp.seconds)
+        ? new Date(data.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : 'Now';
+
+    const safe = str => String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+    const card = document.createElement('div');
+    card.className  = 'ent-post-card';
+    card.dataset.id = data.id || '';
+    card.setAttribute('data-mood', (data.mood || '').toLowerCase().trim());
+    card.innerHTML  = `
+      <div class="epc-header">
+        <div class="epc-av">${safe(init)}</div>
+        <div class="epc-meta">
+          <div class="epc-name">${safe(data.author || 'Anonymous')}</div>
+          <div class="epc-sub">${safe(data.city || '')} · ${when}</div>
+        </div>
+        <span class="epc-mood-badge">${data.moodEmoji || ''} ${safe(data.mood || '')}</span>
+      </div>
+      <div class="epc-body">${safe(data.text || '')}</div>
+      ${data.photo ? `<img class="epc-photo" src="${data.photo}" alt="post photo"/>` : ''}
+      <div class="epc-footer">
+        <button class="epc-action${isLiked ? ' liked' : ''}" data-post-id="${safe(data.id || '')}" onclick="toggleEntLike(this)">
+          <svg width="14" height="14" viewBox="0 0 24 24"
+            fill="${isLiked ? 'var(--cr)' : 'none'}"
+            stroke="${isLiked ? 'var(--cr)' : 'currentColor'}"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          <span>${data.likes || 0}</span>
+        </button>
+        <button class="epc-action" onclick="openEntShare(this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+          Share
+        </button>
+      </div>`;
+
+    feedEl.insertBefore(card, feedEl.firstChild);
+
+    const _f = window._activeMoodFilter;
+    const _m = card.getAttribute('data-mood');
+    if (_f && _m !== _f) card.style.display = 'none';
+
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+
+  /* ── Like toggle: writes to Firestore so likes persist on refresh ──
+     Uses Firestore increment() so vibes counter is always real on next load.
+  ── */
+  window.toggleEntLike = async function (btn) {
+    const postId = btn.dataset.postId;
+    if (!postId) return;
+
+    const likedSet = getLikedSet();
+    const wasLiked = likedSet.has(postId);
+    const nowLiked = !wasLiked;
+    const span     = btn.querySelector('span');
+    const svg      = btn.querySelector('svg');
+    const n        = parseInt(span.textContent) || 0;
+
+    /* Optimistic UI update immediately */
+    btn.classList.toggle('liked', nowLiked);
+    span.textContent = nowLiked ? n + 1 : Math.max(0, n - 1);
+    svg.setAttribute('fill',   nowLiked ? 'var(--cr)' : 'none');
+    svg.setAttribute('stroke', nowLiked ? 'var(--cr)' : 'currentColor');
+
+    /* Persist heart state in localStorage */
+    if (nowLiked) likedSet.add(postId);
+    else          likedSet.delete(postId);
+    saveLikedSet(likedSet);
+
+    /* Write to Firestore — vibes counter reads this on next refresh */
+    try {
+      const postRef = window.doc(window.db, 'entertainment_posts', postId);
+      await window.updateDoc(postRef, {
+        likes: window.increment(nowLiked ? 1 : -1)
+      });
+    } catch (err) {
+      console.warn('Like write failed, rolling back:', err);
+      /* Rollback everything if write fails */
+      btn.classList.toggle('liked', wasLiked);
+      span.textContent = n;
+      svg.setAttribute('fill',   wasLiked ? 'var(--cr)' : 'none');
+      svg.setAttribute('stroke', wasLiked ? 'var(--cr)' : 'currentColor');
+      if (wasLiked) likedSet.add(postId);
+      else          likedSet.delete(postId);
+      saveLikedSet(likedSet);
+    }
+
+    gsap.fromTo(btn, { scale: 0.78 }, { scale: 1, duration: 0.3, ease: 'back.out(2)' });
+  };
+
+  /* ── Share ── */
+  window.openEntShare = function (btn) {
+    const id   = btn.closest('.ent-post-card')?.dataset.id || '';
+    const link = `${location.origin}${location.pathname}?post=${id}`;
+    const inp  = document.getElementById('shareLink');
+    if (inp) {
+      inp.value = link;
+      document.getElementById('sharePopup').classList.add('open');
+      document.getElementById('shareOverlay').classList.add('open');
+    }
+  };
+
+  /* ══ SINGLE onSnapshot — no getDocs before it, no duplicate listener ══
+     Firestore's onSnapshot serves from local cache instantly on first fire,
+     then syncs from server. This gives fast load + live updates in one call.
+  ══ */
+  function loadEntPosts() {
+    if (!window.db) return;
+
+    const city = (window.S && S.city && S.city !== 'Unknown' && S.city !== '')
+      ? S.city
+      : (document.getElementById('cityLabel')?.textContent?.trim() || localStorage.getItem('tiq-city') || '');
+
+    console.log('[EntPosts] Listening for city:', city);
+
+    const q = window.query(
+      window.collection(window.db, 'entertainment_posts'),
+      window.where('city', '==', city)
+    );
+
+    window.onSnapshot(q, snapshot => {
+
+      /* Render new cards */
+      snapshot.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          if (document.querySelector(`.ent-post-card[data-id="${change.doc.id}"]`)) return;
+          renderEntPost({ ...change.doc.data(), id: change.doc.id });
+        }
+        /* Update like count on existing cards when Firestore confirms the write */
+        if (change.type === 'modified') {
+          const card      = document.querySelector(`.ent-post-card[data-id="${change.doc.id}"]`);
+          const likeSpan  = card?.querySelector('.epc-action[data-post-id] span');
+          if (likeSpan) likeSpan.textContent = change.doc.data().likes || 0;
+        }
+      });
+
+      /* Posts count */
+      const tbPosts = document.getElementById('tbPosts');
+      if (tbPosts) tbPosts.textContent = snapshot.size;
+
+      /* ══ Vibes = sum of real likes from Firestore — correct on every refresh ══ */
+      let totalLikes = 0;
+      snapshot.forEach(d => { totalLikes += (d.data().likes || 0); });
+      const tbVibes = document.getElementById('tbVibes');
+      if (tbVibes) {
+        const prev = parseInt(tbVibes.textContent) || 0;
+        tbVibes.textContent = totalLikes;
+        if (prev !== totalLikes) {
+          gsap.fromTo('#tbVibes', { scale: 1.35 }, { scale: 1, duration: 0.3, ease: 'back.out(2)' });
+        }
+      }
+
+    }, err => {
+      console.warn('[EntPosts] Snapshot error:', err);
+    });
+  }
+
+  window._activeMoodFilter = null;
+
+  if (window._firebaseReady) {
+    loadEntPosts();
+  } else {
+    window.addEventListener('firebaseReady', loadEntPosts);
+  }
+
+})();
+</script>
+
+</body>
+</html>

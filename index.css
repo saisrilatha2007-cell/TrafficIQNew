@@ -1,0 +1,153 @@
+/* Base Reset */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body, html {
+    width: 100%; height: 100vh; overflow: hidden;
+    font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif; 
+    background-color: #05050a;
+}
+
+.scene {
+    position: relative; width: 100%; height: 100%; display: flex;
+    align-items: center; justify-content: center; overflow: hidden; 
+}
+
+/* --- Night Environment --- */
+.sky {
+    position: absolute; top: 0; width: 100%; height: 75%;
+    /* Deep night sky gradient */
+    background: linear-gradient(to bottom, #020111 0%, #1a153a 60%, #202d45 100%); z-index: 1;
+}
+
+/* The Stars */
+.stars {
+    position: absolute; top: 0; left: 0; width: 200%; height: 100%;
+    background-image: 
+        radial-gradient(1.5px 1.5px at 20px 30px, #ffffff, rgba(0,0,0,0)),
+        radial-gradient(2px 2px at 80px 70px, #ffffff, rgba(0,0,0,0)),
+        radial-gradient(1px 1px at 150px 120px, #ffffff, rgba(0,0,0,0)),
+        radial-gradient(2px 2px at 250px 40px, #ffffff, rgba(0,0,0,0)),
+        radial-gradient(1.5px 1.5px at 320px 90px, #ffffff, rgba(0,0,0,0));
+    background-size: 350px 350px;
+    animation: panClouds 60s linear infinite; /* Slowly pans with the sky */
+    opacity: 0.6;
+}
+
+/* The Glowing Moon */
+.moon {
+    position: absolute; top: 12%; right: 15%; width: 80px; height: 80px;
+    background: #e6eef0;
+    border-radius: 50%; box-shadow: 0 0 40px rgba(230, 238, 240, 0.8), 0 0 100px rgba(176, 196, 222, 0.5); z-index: 1;
+}
+
+/* Dark Night Clouds */
+.clouds-container {
+    position: absolute; top: 10%; width: 200%; display: flex;
+    justify-content: space-around; animation: panClouds 50s linear infinite; z-index: 2; opacity: 0.4;
+}
+.cloud { width: 140px; height: 45px; background: #1a1c29; border-radius: 50px; position: relative; }
+.cloud::before, .cloud::after { content: ''; position: absolute; background: #1a1c29; border-radius: 50%; }
+.cloud::before { width: 70px; height: 70px; top: -35px; left: 20px; }
+.cloud::after { width: 90px; height: 90px; top: -50px; right: 20px; }
+
+/* Night Cityscape */
+.cityscape-container { position: absolute; bottom: 29%; width: 100%; height: 60%; z-index: 3; }
+.city-scroll { display: flex; width: max-content; height: 100%; animation: panCity 25s linear infinite; }
+.city-segment { display: flex; align-items: flex-end; width: max-content; height: 100%; }
+
+/* Dark Buildings */
+.building { position: relative; margin: 0 -2px; filter: drop-shadow(-15px 10px 10px rgba(0,0,0,0.8)); }
+.b1 { width: 140px; height: 380px; background: #0a0e14; background-image: radial-gradient(#f1c40f 2px, transparent 2px); background-size: 20px 30px; }
+.b2 { width: 180px; height: 220px; background: #11151a; border-top: 12px solid #0b2b24; }
+.b3 { width: 150px; height: 300px; background: #05070a; border-radius: 15px 15px 0 0; }
+
+/* Dark Silhouetted Trees */
+.tree {
+    position: relative; display: flex; flex-direction: column; align-items: center;
+    z-index: 10; margin: 0 -25px; transform: translateY(10px); 
+    filter: drop-shadow(-15px 10px 10px rgba(0,0,0,0.9)); 
+}
+.trunk { width: 14px; height: 45px; background: #0a0705; }
+.pine .leaves { width: 0; height: 0; border-left: 35px solid transparent; border-right: 35px solid transparent; border-bottom: 90px solid #051408; margin-bottom: -10px; }
+.oak .leaves { width: 90px; height: 90px; background: #081a0b; border-radius: 50%; margin-bottom: -25px; }
+.cypress .leaves { width: 40px; height: 110px; background: #041206; border-radius: 50%; margin-bottom: -15px; }
+
+/* Dark Grass & Road */
+.grass-strip { position: absolute; bottom: 25%; width: 100%; height: 5%; background: #0d1a0d; border-top: 4px solid #142e14; z-index: 4; }
+.road { position: absolute; bottom: 0; width: 100%; height: 25%; background-color: #15181c; border-top: 6px solid #0d0f12; z-index: 5; box-shadow: inset 0 20px 40px -10px rgba(0,0,0,0.8); }
+.markings { position: absolute; top: 50%; width: 200%; height: 10px; background: repeating-linear-gradient(to right, transparent, transparent 100px, rgba(255,255,255,0.7) 100px, rgba(255,255,255,0.7) 200px); transform: translateY(-50%); animation: panRoad 0.8s linear infinite; }
+
+/* Foreground Streetlights (Planted firmly on the curb) */
+.streetlights-container {
+    position: absolute; bottom: 25%; /* Anchors exactly to the top of the road */
+    width: 100%; height: 180px; z-index: 6; pointer-events: none;
+}
+.streetlights-scroll {
+    display: flex; width: max-content; height: 100%; animation: panCity 4s linear infinite; /* Faster than buildings! */
+}
+.streetlight-group {
+    display: flex; align-items: flex-end; width: max-content; height: 100%;
+}
+.streetlight-front {
+    position: relative; width: 8px; height: 150px; background: #050505;
+    margin: 0 350px; /* Spread perfectly along the road */
+    border-left: 2px solid #222;
+}
+.streetlight-front::after { /* The Glowing Lamp */
+    content: ''; position: absolute; top: -10px; left: -25px; width: 50px; height: 15px;
+    background: #fff5cc; border-radius: 15px;
+    box-shadow: 0 0 50px 20px rgba(255, 230, 0, 0.5), 0 20px 60px rgba(255, 230, 0, 0.3);
+}
+.streetlight-front::before { /* The Sturdy Base */
+    content: ''; position: absolute; bottom: 0; left: -6px; width: 20px; height: 12px;
+    background: #020202; border-radius: 3px 3px 0 0;
+}
+
+/* Canvas & Overlays */
+#smoke-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 15; pointer-events: none; }
+#smoke-screen { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(circle at center, rgba(10,10,15,0.98) 0%, rgba(2,2,5,1) 100%); opacity: 0; pointer-events: none; z-index: 18; }
+
+/* Night Car Details */
+.car-wrapper { position: absolute; bottom: 7%; left: -30%; z-index: 10; width: 320px; }
+.car-svg { filter: drop-shadow(-20px 15px 20px rgba(0,0,0,0.9)); position: relative; z-index: 2; }
+.car-body { animation: engineVibrate 0.1s linear infinite; }
+
+/* The Headlight Beam - Fixed Alignment! */
+.headlight-beam {
+    position: absolute; top: 72px; left: 305px; width: 450px; height: 45px;
+    background: linear-gradient(to right, rgba(255, 255, 255, 0.8), transparent);
+    clip-path: polygon(0 40%, 100% 0, 100% 100%, 0 60%);
+    z-index: 1; filter: blur(3px);
+    transform-origin: left center;
+    transform: rotate(3deg); /* Slight downward angle toward the road */
+}
+
+.car-shadow {
+    position: absolute; bottom: -8px; left: -10px; width: 290px; height: 14px; background: rgba(0, 0, 0, 0.9);
+    border-radius: 50%; filter: blur(6px); z-index: -1; transform: skewX(45deg); animation: shadowPulse 0.1s linear infinite;
+}
+
+/* Wheel Animations */
+.wheel { animation: spinWheel 0.3s linear infinite; }
+.wheel-back { transform-origin: 75px 95px; }
+.wheel-front { transform-origin: 245px 95px; }
+
+/* Fast State for high speed! */
+.fast-road .markings { animation-duration: 0.15s; }
+.fast-road .city-scroll { animation-duration: 6s; }
+.fast-road .streetlights-scroll { animation-duration: 0.8s; } /* Zip by super fast */
+.fast-road .clouds-container { animation-duration: 15s; }
+.fast-road .wheel { animation-duration: 0.05s; }
+
+/* Title Styling */
+.title { position: absolute; z-index: 20; text-align: center; opacity: 0; transform: scale(0.6); filter: blur(15px); will-change: transform, opacity, filter; }
+.text-light { font-weight: 300; display: block; font-size: 3.5rem; color: #b6eaf8; letter-spacing: 5px; margin-bottom: -20px; text-shadow: 0px 0px 15px rgba(255,255,255,0.4); }
+.text-bold { font-weight: 900; font-size: 7rem; letter-spacing: 5px; color: #731deb; -webkit-text-stroke: 2px #008c9e; text-shadow: 5px 5px 0px #0a0a0a, 0px 0px 30px rgba(0, 229, 255, 0.6); }
+
+/* Keyframes */
+@keyframes panClouds { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+@keyframes panCity { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+@keyframes panRoad { from { transform: translateX(0); } to { transform: translateX(-200px); } }
+@keyframes engineVibrate { 0% { transform: translateY(0px); } 50% { transform: translateY(-1.5px); } 100% { transform: translateY(0px); } }
+@keyframes spinWheel { 100% { transform: rotate(360deg); } }
+@keyframes shadowPulse { 0% { transform: scale(1) skewX(45deg); opacity: 0.8; } 50% { transform: scale(0.98) skewX(45deg); opacity: 0.9; } 100% { transform: scale(1) skewX(45deg); opacity: 0.8; } }
