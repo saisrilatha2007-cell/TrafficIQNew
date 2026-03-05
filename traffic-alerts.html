@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TrafficIQ – Live Traffic Alerts</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0a0c10; --surface: #12151c; --card: #181c26; --border: #232736;
+      --accent: #f97316; --danger: #ef4444; --success: #22c55e;
+      --info: #38bdf8; --warn: #facc15; --text: #e8eaf0; --muted: #6b7280;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image: linear-gradient(rgba(249,115,22,0.04) 1px,transparent 1px), linear-gradient(90deg,rgba(249,115,22,0.04) 1px,transparent 1px);
+      background-size: 44px 44px; pointer-events: none; z-index: 0;
+    }
+
+    /* HEADER */
+    header { position: sticky; top: 0; z-index: 200; background: rgba(10,12,16,0.92); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 62px; }
+    .logo { font-family: 'Syne',sans-serif; font-weight: 800; font-size: 21px; display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+    .logo span { color: var(--accent); }
+    .gps-badge { display: flex; align-items: center; gap: 7px; background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-size: 12px; color: var(--muted); }
+    .gps-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: all 0.3s; flex-shrink: 0; }
+    .gps-dot.on { background: var(--success); box-shadow: 0 0 7px var(--success); animation: blink 2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* NOTIF PERMISSION BANNER */
+    #perm-banner {
+      background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.3);
+      border-radius: var(--radius); padding: 14px 18px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      margin: 16px 20px 0; position: relative; z-index: 1;
+    }
+    #perm-banner p { font-size: 13px; color: var(--text); }
+    #perm-banner p span { color: var(--accent); font-weight: 600; }
+    #perm-btn { background: var(--accent); border: none; border-radius: 8px; padding: 8px 16px; color: #fff; font-family: 'Syne',sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap; }
+    #perm-banner.hidden { display: none; }
+
+    /* MAIN */
+    main { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 20px 20px 60px; display: flex; flex-direction: column; gap: 20px; }
+
+    /* TRAVEL CARD */
+    .travel-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .travel-info h2 { font-family: 'Syne',sans-serif; font-size: 17px; font-weight: 700; }
+    .travel-info p { color: var(--muted); font-size: 13px; margin-top: 3px; }
+    .toggle-wrap { position: relative; width: 62px; height: 33px; cursor: pointer; flex-shrink: 0; }
+    .toggle-wrap input { display: none; }
+    .t-track { position: absolute; inset: 0; background: var(--border); border-radius: 17px; transition: background 0.3s; }
+    .t-thumb { position: absolute; top: 3px; left: 3px; width: 27px; height: 27px; background: #fff; border-radius: 50%; transition: transform 0.3s; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+    .toggle-wrap input:checked ~ .t-track { background: var(--accent); }
+    .toggle-wrap input:checked ~ .t-thumb { transform: translateX(29px); }
+
+    /* NOTIFICATION STATUS */
+    .notif-status { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; display: flex; align-items: center; gap: 12px; font-size: 13px; }
+    .notif-status .ns-icon { font-size: 20px; }
+    .notif-status .ns-text { flex: 1; }
+    .notif-status .ns-label { font-weight: 600; font-size: 13px; }
+    .notif-status .ns-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .ns-badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+    .ns-badge.granted { background: rgba(34,197,94,0.15); color: var(--success); }
+    .ns-badge.denied  { background: rgba(239,68,68,0.15);  color: var(--danger); }
+    .ns-badge.default { background: rgba(249,115,22,0.15); color: var(--accent); }
+
+    /* LOCATION BAR */
+    .loc-bar { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; display: flex; align-items: center; gap: 14px; }
+    .loc-ico { width: 42px; height: 42px; flex-shrink: 0; background: rgba(249,115,22,0.12); border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .loc-text .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .loc-text .val { font-family: 'Syne',sans-serif; font-weight: 600; font-size: 14px; margin-top: 2px; }
+    .loc-text .coords { font-size: 11px; color: var(--muted); font-family: monospace; margin-top: 2px; }
+
+    /* REPORT BUTTON */
+    .report-btn { width: 100%; padding: 15px; background: var(--accent); border: none; border-radius: var(--radius); color: #fff; font-family: 'Syne',sans-serif; font-weight: 700; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px; transition: all 0.2s; }
+    .report-btn:hover { background: #ea6c0c; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(249,115,22,0.28); }
+
+    /* HOW IT WORKS */
+    .how-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+    .how-card h3 { font-family: 'Syne',sans-serif; font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--accent); }
+    .how-steps { display: flex; flex-direction: column; gap: 8px; }
+    .how-step { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .how-step .hs-num { width: 20px; height: 20px; background: rgba(249,115,22,0.15); color: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+    /* SECTION */
+    .sec-head { font-family: 'Syne',sans-serif; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 11px; }
+    .badge { background: rgba(249,115,22,0.15); color: var(--accent); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+
+    /* ISSUE CARDS */
+    .issues-list { display: flex; flex-direction: column; gap: 9px; }
+    .issue-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; display: flex; align-items: flex-start; gap: 13px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+    .issue-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+    .ic-accident::before     { background: var(--danger); }
+    .ic-heavy::before        { background: var(--warn); }
+    .ic-block::before        { background: var(--accent); }
+    .ic-construction::before { background: var(--info); }
+    .issue-card:hover { border-color: var(--accent); transform: translateX(2px); }
+    .issue-emoji { font-size: 21px; margin-top: 1px; }
+    .issue-body { flex: 1; min-width: 0; }
+    .issue-title { font-family: 'Syne',sans-serif; font-weight: 600; font-size: 13px; }
+    .issue-meta { color: var(--muted); font-size: 12px; margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .tag-delay { color: var(--danger); font-weight: 600; }
+    .tag-dist  { color: var(--accent); font-weight: 500; }
+    .tag-conf  { color: var(--success); }
+    .empty-box { background: var(--card); border: 1px dashed var(--border); border-radius: var(--radius); padding: 36px; text-align: center; color: var(--muted); }
+    .empty-box .eico { font-size: 38px; margin-bottom: 10px; }
+    .empty-box p { font-size: 13px; line-height: 1.6; }
+
+    /* IN-PAGE NOTIFICATION PANEL */
+    #notif-panel { position: fixed; top: 74px; right: 18px; width: 355px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+    .ncard { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; pointer-events: all; box-shadow: 0 20px 60px rgba(0,0,0,0.65); animation: nIn 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+    @keyframes nIn { from{opacity:0;transform:scale(0.82) translateY(-16px)} to{opacity:1;transform:scale(1) translateY(0)} }
+    .ncard.out { animation: nOut 0.22s ease forwards; }
+    @keyframes nOut { to{opacity:0;transform:scale(0.9) translateX(28px)} }
+    .n-head { display: flex; align-items: center; gap: 9px; padding: 12px 14px 9px; border-bottom: 1px solid var(--border); }
+    .n-app-ico { width: 26px; height: 26px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+    .n-app-name { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; flex: 1; }
+    .n-time { font-size: 11px; color: var(--muted); }
+    .n-x { width: 20px; height: 20px; background: var(--border); border-radius: 50%; border: none; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: background 0.2s; }
+    .n-x:hover { background: var(--danger); color: #fff; }
+    .n-body { padding: 13px 15px 10px; }
+    .n-title { font-family: 'Syne',sans-serif; font-weight: 700; font-size: 13px; margin-bottom: 5px; }
+    .n-msg { font-size: 12px; color: var(--muted); line-height: 1.55; }
+    .n-actions { display: flex; gap: 7px; flex-wrap: wrap; padding: 0 15px 13px; }
+    .nbtn { flex: 1; min-width: 72px; padding: 8px 12px; border-radius: 9px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-family: 'DM Sans',sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; text-align: center; }
+    .nbtn:hover { border-color: var(--accent); color: var(--accent); }
+    .nbtn.ok  { background: rgba(34,197,94,0.1); border-color: var(--success); color: var(--success); }
+    .n-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 0 15px 13px; }
+    .n-opt { padding: 9px 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); cursor: pointer; text-align: center; font-size: 11px; font-weight: 500; transition: all 0.2s; }
+    .n-opt .oi { font-size: 19px; display: block; margin-bottom: 3px; }
+    .n-opt:hover { border-color: var(--accent); background: rgba(249,115,22,0.07); }
+    .n-opt.sel   { border-color: var(--accent); background: rgba(249,115,22,0.14); color: var(--accent); }
+    .n-ok { padding: 11px 15px; background: rgba(34,197,94,0.08); border-top: 1px solid rgba(34,197,94,0.18); color: var(--success); font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 7px; }
+
+    /* LOG */
+    .log-list { display: flex; flex-direction: column; gap: 5px; }
+    .log-row { font-size: 12px; color: var(--muted); padding: 7px 13px; background: var(--card); border-radius: 8px; border-left: 2px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .log-row.info    { border-color: var(--info); }
+    .log-row.warn    { border-color: var(--warn); }
+    .log-row.success { border-color: var(--success); }
+    .log-row.error   { border-color: var(--danger); }
+    .log-t { font-family: monospace; flex-shrink: 0; }
+
+    /* MODAL */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(8px); z-index: 5000; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+    .overlay.open { opacity: 1; pointer-events: all; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 20px; width: 100%; max-width: 430px; padding: 26px; transform: translateY(18px) scale(0.97); transition: transform 0.25s; }
+    .overlay.open .modal { transform: translateY(0) scale(1); }
+    .modal h2 { font-family: 'Syne',sans-serif; font-size: 19px; font-weight: 800; margin-bottom: 4px; }
+    .modal p  { color: var(--muted); font-size: 13px; margin-bottom: 22px; }
+    .flbl { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 7px; }
+    .fgrp { margin-bottom: 15px; }
+    .igrid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .iopt { padding: 13px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; text-align: center; font-size: 12px; font-weight: 500; transition: all 0.2s; }
+    .iopt .ie { font-size: 24px; display: block; margin-bottom: 5px; }
+    .iopt:hover { border-color: var(--accent); }
+    .iopt.sel   { border-color: var(--accent); background: rgba(249,115,22,0.1); color: var(--accent); }
+    .finput, .fsel { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; color: var(--text); font-family: 'DM Sans',sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; }
+    .finput:focus, .fsel:focus { border-color: var(--accent); }
+    .fsel option { background: var(--surface); }
+    .mact { display: flex; gap: 9px; margin-top: 22px; }
+    .btn-cancel { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Sans',sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .btn-cancel:hover { border-color: var(--text); color: var(--text); }
+    .btn-submit { flex: 2; padding: 12px; border-radius: 10px; border: none; background: var(--accent); color: #fff; font-family: 'Syne',sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+    .btn-submit:hover { background: #ea6c0c; }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 11px 20px; font-size: 13px; font-weight: 500; box-shadow: 0 14px 40px rgba(0,0,0,0.5); z-index: 99999; opacity: 0; pointer-events: none; transition: all 0.3s; white-space: nowrap; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+    @media(max-width:580px){ #notif-panel{width:calc(100vw - 32px);right:16px;} }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="logo-icon">🚦</div>Traffic<span>IQ</span></div>
+  <div class="gps-badge"><div class="gps-dot" id="gps-dot"></div><span id="gps-label">GPS Off</span></div>
+</header>
+
+<!-- NOTIFICATION PERMISSION BANNER -->
+<div id="perm-banner">
+  <p>⚠️ Enable <span>browser notifications</span> to get traffic alerts even when tab is in background</p>
+  <button id="perm-btn" onclick="askPermission()">Enable Now</button>
+</div>
+
+<div id="notif-panel"></div>
+<div class="toast" id="toast"></div>
+
+<main>
+
+  <!-- NOTIFICATION STATUS -->
+  <div class="notif-status" id="notif-status">
+    <div class="ns-icon">🔔</div>
+    <div class="ns-text">
+      <div class="ns-label">Notification Status</div>
+      <div class="ns-sub" id="ns-sub">Click "Enable Now" above to allow notifications</div>
+    </div>
+    <span class="ns-badge default" id="ns-badge">Pending</span>
+  </div>
+
+  <!-- TRAVEL CARD -->
+  <div class="travel-card">
+    <div class="travel-info">
+      <h2>🚗 Travel Mode</h2>
+      <p>Enable to track location and receive live traffic alerts</p>
+    </div>
+    <label class="toggle-wrap">
+      <input type="checkbox" id="travel-toggle" onchange="toggleTravel(this.checked)"/>
+      <div class="t-track"></div><div class="t-thumb"></div>
+    </label>
+  </div>
+
+  <!-- HOW NOTIFICATIONS WORK -->
+  <div class="how-card">
+    <h3>🔔 How Notifications Work</h3>
+    <div class="how-steps">
+      <div class="how-step"><div class="hs-num">1</div><span>Enable notifications above + turn on Travel Mode</span></div>
+      <div class="how-step"><div class="hs-num">2</div><span>Within 2 km of an issue → <strong>Traffic Alert</strong> notification with <strong>Confirm Issue</strong> button</span></div>
+      <div class="how-step"><div class="hs-num">3</div><span>No issues nearby → <strong>Check-in</strong> notification with <strong>Accident / Heavy Traffic / Road Block / No Traffic</strong> buttons</span></div>
+      <div class="how-step"><div class="hs-num">4</div><span>Works even when <strong>tab is in background</strong> — you'll see OS notification popup</span></div>
+    </div>
+  </div>
+
+  <!-- LOCATION -->
+  <div class="loc-bar">
+    <div class="loc-ico">📍</div>
+    <div class="loc-text">
+      <div class="lbl">Current Location</div>
+      <div class="val" id="loc-name">Enable travel mode to begin</div>
+      <div class="coords" id="loc-coords">—</div>
+    </div>
+  </div>
+
+  <!-- REPORT BUTTON -->
+  <button class="report-btn" onclick="openModal()">⚠️ Report a Traffic Issue</button>
+
+  <!-- NEARBY ISSUES -->
+  <div>
+    <div class="sec-head">🔍 Nearby Issues <span class="badge" id="cnt">0</span></div>
+    <div class="issues-list" id="issues-list">
+      <div class="empty-box"><div class="eico">🛣️</div><p>No issues nearby.<br/>Enable travel mode to start monitoring.</p></div>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div>
+    <div class="sec-head">📋 Activity Log</div>
+    <div class="log-list" id="log-list">
+      <div class="log-row info"><span class="log-t" id="init-t"></span><span>TrafficIQ ready. Enable travel mode to begin.</span></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- REPORT MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>⚠️ Report an Issue</h2>
+    <p>Help your community — share what you see on the road</p>
+    <div class="fgrp">
+      <label class="flbl">Issue Type</label>
+      <div class="igrid">
+        <div class="iopt" onclick="pickType('Accident',this)"><span class="ie">💥</span>Accident</div>
+        <div class="iopt" onclick="pickType('Heavy Traffic',this)"><span class="ie">🚗</span>Heavy Traffic</div>
+        <div class="iopt" onclick="pickType('Road Block',this)"><span class="ie">🚧</span>Road Block</div>
+        <div class="iopt" onclick="pickType('Road Construction',this)"><span class="ie">🏗️</span>Construction</div>
+      </div>
+    </div>
+    <div class="fgrp">
+      <label class="flbl">Location Name</label>
+      <input class="finput" id="m-loc" placeholder="e.g. Bhimavaram Railway Station"/>
+    </div>
+    <div class="fgrp">
+      <label class="flbl">Expected Delay (minutes)</label>
+      <select class="fsel" id="m-delay">
+        <option value="">No delay / Unknown</option>
+        <option value="5">5 minutes</option>
+        <option value="10">10 minutes</option>
+        <option value="15">15 minutes</option>
+        <option value="20">20 minutes</option>
+        <option value="30">30 minutes</option>
+        <option value="45">45 minutes</option>
+        <option value="60">1 hour</option>
+        <option value="90">1.5 hours</option>
+      </select>
+    </div>
+    <div class="mact">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-submit" id="m-sub" onclick="submitReport()">Submit Report</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs,
+         query, orderBy, updateDoc, doc, increment }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyAKGbbt_ARGWep8ggPuk_iE6R1xALkmJM8",
+  authDomain:        "trafficiq-3ef14.firebaseapp.com",
+  databaseURL:       "https://trafficiq-3ef14-default-rtdb.firebaseio.com",
+  projectId:         "trafficiq-3ef14",
+  storageBucket:     "trafficiq-3ef14.firebasestorage.app",
+  messagingSenderId: "97313655693",
+  appId:             "1:97313655693:web:fee4304d7815bdceaf0bc4",
+  measurementId:     "G-N8CC0BE6HS"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// ── STATE ──
+let travelOn=false, watchId=null, userLat=null, userLng=null;
+let notifiedIds=new Set(), checkinSent=false, selectedType=null, allReports=[];
+let swReg = null; // service worker registration
+
+const EMOJI={'Accident':'💥','Heavy Traffic':'🚗','Road Block':'🚧','Road Construction':'🏗️'};
+function cssClass(t){ return t==='Accident'?'ic-accident':t==='Heavy Traffic'?'ic-heavy':t==='Road Block'?'ic-block':'ic-construction'; }
+function dist(a,b,c,d){
+  const R=6371,dL=(c-a)*Math.PI/180,dN=(d-b)*Math.PI/180;
+  const x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dN/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function hhmm(d){ return d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); }
+function ago(ts){
+  const ms=(typeof ts?.toMillis==='function')?ts.toMillis():Number(ts)*1000;
+  const m=Math.floor((Date.now()-ms)/60000);
+  if(m<1)return 'just now'; if(m<60)return m+'m ago'; return Math.floor(m/60)+'h ago';
+}
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+function log(msg,type='info'){
+  const l=document.getElementById('log-list');
+  const r=document.createElement('div'); r.className='log-row '+type;
+  r.innerHTML=`<span class="log-t">${hhmm(new Date())}</span><span>${msg}</span>`;
+  l.insertBefore(r,l.firstChild);
+  if(l.children.length>30) l.removeChild(l.lastChild);
+}
+
+// ── STEP 1: REGISTER SERVICE WORKER ──────────────────────────────
+async function registerSW(){
+  if('serviceWorker' in navigator){
+    try{
+      swReg = await navigator.serviceWorker.register('/sw.js');
+      log('Service Worker registered ✅','success');
+
+      // Listen for messages FROM service worker (button clicks)
+      navigator.serviceWorker.addEventListener('message', async e => {
+        const msg = e.data;
+        if(msg.type === 'CONFIRM')       await handleConfirm(msg.reportId);
+        if(msg.type === 'QUICK_REPORT')  await handleQuickReport(msg.issueType, msg.lat, msg.lng);
+        if(msg.type === 'ALL_CLEAR')     handleAllClear();
+      });
+
+    }catch(err){
+      log('SW registration failed: '+err.message,'error');
+    }
+  }
+}
+registerSW();
+
+// ── STEP 2: ASK NOTIFICATION PERMISSION ──────────────────────────
+window.askPermission = async function(){
+  const result = await Notification.requestPermission();
+  updateNotifStatus(result);
+  if(result === 'granted'){
+    document.getElementById('perm-banner').classList.add('hidden');
+    log('Notifications enabled ✅','success');
+    toast('✅ Notifications enabled!');
+  } else {
+    log('Notification permission denied ❌','error');
+    toast('❌ Please allow notifications in browser settings');
+  }
+};
+
+function updateNotifStatus(perm){
+  const badge = document.getElementById('ns-badge');
+  const sub   = document.getElementById('ns-sub');
+  if(perm==='granted'){
+    badge.textContent='Enabled ✅'; badge.className='ns-badge granted';
+    sub.textContent='You will receive traffic alerts as notifications';
+    document.getElementById('perm-banner').classList.add('hidden');
+  } else if(perm==='denied'){
+    badge.textContent='Blocked ❌'; badge.className='ns-badge denied';
+    sub.textContent='Go to browser settings → allow notifications for this site';
+  } else {
+    badge.textContent='Pending'; badge.className='ns-badge default';
+    sub.textContent='Click "Enable Now" above to allow notifications';
+  }
+}
+
+// Check permission on load
+updateNotifStatus(Notification.permission);
+if(Notification.permission === 'granted') document.getElementById('perm-banner').classList.add('hidden');
+
+// ── STEP 3: SEND NOTIFICATION ─────────────────────────────────────
+// Uses Service Worker to show notification WITH action buttons
+async function sendNotification(title, body, actions, data={}){
+  if(Notification.permission !== 'granted'){ 
+    log('Notifications not permitted','warn'); 
+    return; 
+  }
+
+  // If service worker is ready — use it (supports action buttons)
+  if(swReg){
+    try{
+      await swReg.showNotification(title, {
+        body,
+        icon: 'https://cdn.jsdelivr.net/npm/twemoji@14.0.2/assets/72x72/1f6a6.png',
+        badge: 'https://cdn.jsdelivr.net/npm/twemoji@14.0.2/assets/72x72/1f514.png',
+        actions,
+        data,
+        requireInteraction: true,  // stays until user acts
+        vibrate: [200, 100, 200]
+      });
+    }catch(e){
+      // Fallback to basic notification
+      new Notification(title, { body });
+    }
+  } else {
+    // Basic fallback
+    new Notification(title, { body });
+  }
+}
+
+// ── TRAVEL TOGGLE ─────────────────────────────────────────────────
+window.toggleTravel = function(on){
+  travelOn=on;
+  document.getElementById('gps-dot').classList.toggle('on',on);
+  document.getElementById('gps-label').textContent=on?'GPS Active':'GPS Off';
+  if(on){
+    if(Notification.permission !== 'granted') askPermission();
+    startGPS();
+    log('Travel mode ON — tracking started.','success');
+  } else {
+    if(watchId) navigator.geolocation.clearWatch(watchId); watchId=null;
+    document.getElementById('loc-name').textContent='Enable travel mode to begin';
+    document.getElementById('loc-coords').textContent='—';
+    notifiedIds.clear(); checkinSent=false;
+    log('Travel mode OFF.','info');
+  }
+};
+
+// ── GPS ───────────────────────────────────────────────────────────
+function startGPS(){
+  if(!navigator.geolocation){ log('Geolocation not supported.','error'); return; }
+  watchId=navigator.geolocation.watchPosition(onPos,onErr,{enableHighAccuracy:true,maximumAge:8000,timeout:15000});
+}
+async function onPos(pos){
+  userLat=pos.coords.latitude; userLng=pos.coords.longitude;
+  document.getElementById('loc-coords').textContent=`${userLat.toFixed(5)}, ${userLng.toFixed(5)}`;
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${userLat}&lon=${userLng}&format=json`);
+    const d=await r.json();
+    document.getElementById('loc-name').textContent=d.address?.suburb||d.address?.village||d.address?.city_district||d.address?.town||d.address?.city||'Your location';
+  }catch{ document.getElementById('loc-name').textContent='Location updated'; }
+  await loadAndCheck();
+}
+function onErr(e){ log('GPS error: '+e.message,'error'); }
+
+// ── LOAD FROM FIRESTORE ───────────────────────────────────────────
+async function loadAndCheck(){
+  try{
+    const snap=await getDocs(query(collection(db,'traffic_reports'),orderBy('timestamp','desc')));
+    allReports=snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderNearby(); checkAlerts();
+  }catch(e){ log('Firestore: '+e.message,'error'); }
+}
+
+// ── RENDER NEARBY ─────────────────────────────────────────────────
+function renderNearby(){
+  if(!userLat)return;
+  const nearby=allReports
+    .map(r=>({...r,km:dist(userLat,userLng,r.latitude,r.longitude)}))
+    .filter(r=>r.km<=5).sort((a,b)=>a.km-b.km);
+  document.getElementById('cnt').textContent=nearby.length;
+  const list=document.getElementById('issues-list');
+  if(!nearby.length){
+    list.innerHTML='<div class="empty-box"><div class="eico">✅</div><p>No issues within 5 km.<br/>Roads look clear!</p></div>';
+    if(travelOn&&!checkinSent){checkinSent=true;setTimeout(triggerCheckin,1800);}
+    return;
+  }
+  list.innerHTML=nearby.map(r=>`
+    <div class="issue-card ${cssClass(r.issueType)}" onclick="confirmCard('${r.id}')">
+      <div class="issue-emoji">${EMOJI[r.issueType]||'⚠️'}</div>
+      <div class="issue-body">
+        <div class="issue-title">${r.issueType||'Unknown'}</div>
+        <div class="issue-meta">
+          <span>📍 ${r.locationName||'Unknown'}</span>
+          ${r.delay?`<span class="tag-delay">⏱ ${r.delay} min</span>`:''}
+          <span class="tag-dist">📡 ${r.km<1?(r.km*1000).toFixed(0)+' m':r.km.toFixed(1)+' km'} away</span>
+          <span>${ago(r.timestamp)}</span>
+          ${r.confirmations?`<span class="tag-conf">✅ ${r.confirmations}</span>`:''}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ── CHECK PROXIMITY & FIRE NOTIFICATIONS ──────────────────────────
+function checkAlerts(){
+  if(!travelOn||!userLat)return;
+  allReports.forEach(r=>{
+    if(notifiedIds.has(r.id))return;
+    const km=dist(userLat,userLng,r.latitude,r.longitude);
+    if(km<=2){
+      notifiedIds.add(r.id);
+      km>0.3 ? triggerAheadNotif(r,km) : triggerAreaNotif(r);
+    }
+  });
+}
+
+// ── FEATURE 1: TRAFFIC AHEAD NOTIFICATION ────────────────────────
+// Shows OS notification with "Confirm Issue" + "Report Issue" buttons
+async function triggerAheadNotif(r, km){
+  const d = km<1?`${(km*1000).toFixed(0)} m`:`${km.toFixed(1)} km`;
+  const title = '🚨 Traffic Alert Ahead';
+  const body  = `${r.issueType} near ${r.locationName} — ${d} ahead.${r.delay?' Delay: '+r.delay+' min':''}`;
+
+  // ── OS NOTIFICATION with action buttons ──
+  await sendNotification(title, body,
+    [
+      { action: 'confirm',        title: '✅ Confirm Issue' },
+      { action: 'report_accident',title: '⚠️ Report Issue'  }
+    ],
+    { reportId: r.id, lat: userLat, lng: userLng }
+  );
+
+  // ── IN-PAGE card (visible while tab is open) ──
+  buildInPageNotif('ah-'+r.id, '🚦', title, body,
+    [{l:'✅ Confirm',c:'ok',fn:`confirmFromPage('${r.id}','ah-${r.id}')`},
+     {l:'🗺 Map',c:'',fn:`openMap(${r.latitude},${r.longitude})`},
+     {l:'Dismiss',c:'',fn:`closeNotif('ah-${r.id}')`}]);
+
+  log(`🔔 Alert: ${r.issueType} ahead — ${r.locationName} (${d})`,'warn');
+}
+
+// ── FEATURE 2: AREA ISSUE NOTIFICATION ───────────────────────────
+async function triggerAreaNotif(r){
+  const title = '📍 Traffic Update Nearby';
+  const body  = `${r.issueType} reported in your current area: ${r.locationName}`;
+
+  await sendNotification(title, body,
+    [
+      { action: 'confirm', title: '✅ Confirm Issue' },
+      { action: 'no_traffic', title: '❌ Not Seen'   }
+    ],
+    { reportId: r.id, lat: userLat, lng: userLng }
+  );
+
+  buildInPageNotif('ar-'+r.id,'📍',title,body,
+    [{l:'✅ Confirm',c:'ok',fn:`confirmFromPage('${r.id}','ar-${r.id}')`},
+     {l:'❌ Not seen',c:'',fn:`closeNotif('ar-${r.id}')`}]);
+
+  log(`📍 In affected area: ${r.locationName}`,'warn');
+}
+
+// ── FEATURE 3: CHECK-IN NOTIFICATION ─────────────────────────────
+// No reports nearby — ask user what they see
+async function triggerCheckin(){
+  const title = '🔍 Any Traffic Issues Here?';
+  const body  = 'No reports in your area. What do you see on the road?';
+
+  // OS notification with report buttons
+  await sendNotification(title, body,
+    [
+      { action: 'report_accident', title: '💥 Accident'      },
+      { action: 'report_heavy',    title: '🚗 Heavy Traffic' },
+      { action: 'report_block',    title: '🚧 Road Block'    },
+      { action: 'no_traffic',      title: '✅ No Traffic'    }
+    ],
+    { lat: userLat, lng: userLng }
+  );
+
+  // In-page card with grid buttons
+  const id  = 'chk-'+Date.now();
+  const grid=`<div class="n-grid" id="g-${id}">
+    <div class="n-opt" onclick="quickReport('Accident','${id}')"><span class="oi">💥</span>Accident</div>
+    <div class="n-opt" onclick="quickReport('Heavy Traffic','${id}')"><span class="oi">🚗</span>Heavy Traffic</div>
+    <div class="n-opt" onclick="quickReport('Road Block','${id}')"><span class="oi">🚧</span>Road Block</div>
+    <div class="n-opt" onclick="quickReport('Road Construction','${id}')"><span class="oi">🏗️</span>Construction</div>
+  </div>`;
+  buildInPageNotif(id,'❓',title,body,
+    [{l:'✅ No Traffic',c:'ok',fn:`allClear('${id}')`},{l:'Skip',c:'',fn:`closeNotif('${id}')`}],
+    grid);
+
+  log('Check-in notification sent.','info');
+}
+
+// ── SERVICE WORKER MESSAGE HANDLERS ──────────────────────────────
+// These fire when user taps buttons on OS notification
+async function handleConfirm(reportId){
+  if(!reportId)return;
+  try{
+    await updateDoc(doc(db,'traffic_reports',reportId),{confirmations:increment(1)});
+    toast('✅ Issue confirmed from notification!');
+    log('Issue confirmed via OS notification button.','success');
+    await loadAndCheck();
+  }catch(e){ log('Confirm error: '+e.message,'error'); }
+}
+
+async function handleQuickReport(issueType, lat, lng){
+  const useLat = lat || userLat;
+  const useLng = lng || userLng;
+  if(!useLat){ toast('⚠️ Location not available'); return; }
+  try{
+    await addDoc(collection(db,'traffic_reports'),{
+      issueType, locationName: document.getElementById('loc-name').textContent,
+      latitude: useLat, longitude: useLng,
+      delay: '', timestamp: Math.floor(Date.now()/1000)
+    });
+    toast(`✅ ${issueType} reported from notification!`);
+    log(`Quick report via OS notification: ${issueType}`,'success');
+    await loadAndCheck();
+  }catch(e){ log('Quick report error: '+e.message,'error'); }
+}
+
+function handleAllClear(){
+  toast('✅ Marked as all clear!');
+  log('All clear reported via OS notification.','success');
+}
+
+// ── IN-PAGE NOTIFICATION BUILDER ──────────────────────────────────
+function buildInPageNotif(id,ico,title,msg,actions,extra=''){
+  const panel=document.getElementById('notif-panel');
+  const card=document.createElement('div'); card.className='ncard'; card.id='n-'+id;
+  card.innerHTML=`
+    <div class="n-head">
+      <div class="n-app-ico">${ico}</div>
+      <span class="n-app-name">TrafficIQ</span>
+      <span class="n-time">${hhmm(new Date())}</span>
+      <button class="n-x" onclick="closeNotif('${id}')">✕</button>
+    </div>
+    <div class="n-body"><div class="n-title">${title}</div><div class="n-msg">${msg}</div></div>
+    ${extra}
+    ${actions.length?`<div class="n-actions">${actions.map(a=>`<button class="nbtn ${a.c||''}" onclick="${a.fn}">${a.l}</button>`).join('')}</div>`:''}`;
+  panel.prepend(card);
+  setTimeout(()=>closeNotif(id),30000);
+}
+
+window.closeNotif=function(id){ const c=document.getElementById('n-'+id); if(!c)return; c.classList.add('out'); setTimeout(()=>c?.remove(),230); };
+
+function swapFeedback(nid,html){
+  const c=document.getElementById('n-'+nid); if(!c)return;
+  const g=c.querySelector('.n-grid'),a=c.querySelector('.n-actions');
+  const fb=document.createElement('div'); fb.className='n-ok'; fb.innerHTML=html;
+  if(g)g.replaceWith(fb); if(a)a.remove();
+}
+
+// ── IN-PAGE ACTIONS ───────────────────────────────────────────────
+window.confirmFromPage=async function(rid,nid){
+  try{
+    await updateDoc(doc(db,'traffic_reports',rid),{confirmations:increment(1)});
+    swapFeedback(nid,'✅ Confirmed! Helping other commuters.');
+    log('Issue confirmed.','success');
+    setTimeout(()=>closeNotif(nid),3000);
+    await loadAndCheck();
+  }catch(e){ toast('Confirm failed: '+e.message); }
+};
+
+window.quickReport=async function(type,nid){
+  const g=document.getElementById('g-'+nid);
+  if(g){ g.querySelectorAll('.n-opt').forEach(e=>e.classList.remove('sel'));
+    Array.from(g.querySelectorAll('.n-opt')).find(e=>e.textContent.trim()===type)?.classList.add('sel'); }
+  if(!userLat){ toast('⚠️ Location not ready'); return; }
+  try{
+    await addDoc(collection(db,'traffic_reports'),{
+      issueType:type, locationName:document.getElementById('loc-name').textContent,
+      latitude:userLat, longitude:userLng, delay:'', timestamp:Math.floor(Date.now()/1000)
+    });
+    swapFeedback(nid,`✅ <strong>${type}</strong> reported!`);
+    log('Quick report: '+type,'success');
+    setTimeout(()=>closeNotif(nid),3500);
+    await loadAndCheck();
+  }catch(e){ toast('Error: '+e.message); }
+};
+
+window.allClear=function(id){ swapFeedback(id,'✅ All clear reported. Thanks!'); log('All clear.','success'); setTimeout(()=>closeNotif(id),3000); };
+
+window.confirmCard=async function(rid){
+  try{
+    await updateDoc(doc(db,'traffic_reports',rid),{confirmations:increment(1)});
+    toast('✅ Issue confirmed!'); log('Confirmed '+rid.slice(0,6)+'.','success');
+    await loadAndCheck();
+  }catch(e){ toast('Could not confirm.'); }
+};
+
+window.openMap=function(lat,lng){ window.open(`https://www.google.com/maps?q=${lat},${lng}`,'_blank'); };
+
+// ── MODAL ─────────────────────────────────────────────────────────
+window.openModal=function(){
+  if(!userLat){ toast('⚠️ Enable travel mode first'); return; }
+  selectedType=null;
+  document.querySelectorAll('.iopt').forEach(e=>e.classList.remove('sel'));
+  document.getElementById('m-loc').value=document.getElementById('loc-name').textContent;
+  document.getElementById('m-delay').value='';
+  document.getElementById('overlay').classList.add('open');
+};
+window.closeModal=function(){ document.getElementById('overlay').classList.remove('open'); };
+window.pickType=function(t,el){ selectedType=t; document.querySelectorAll('.iopt').forEach(e=>e.classList.remove('sel')); el.classList.add('sel'); };
+window.submitReport=async function(){
+  if(!selectedType){ toast('⚠️ Select an issue type'); return; }
+  const loc=document.getElementById('m-loc').value.trim()||'Unknown';
+  const dly=document.getElementById('m-delay').value;
+  const btn=document.getElementById('m-sub'); btn.disabled=true; btn.textContent='Submitting…';
+  try{
+    await addDoc(collection(db,'traffic_reports'),{
+      issueType:selectedType, locationName:loc, latitude:userLat, longitude:userLng,
+      delay:dly?Number(dly):'', timestamp:Math.floor(Date.now()/1000)
+    });
+    closeModal(); toast('✅ Report submitted!');
+    log(`📤 Reported: ${selectedType} at ${loc}`,'success');
+    await loadAndCheck();
+  }catch(e){ toast('Submit failed: '+e.message); log('Error: '+e.message,'error'); }
+  finally{ btn.disabled=false; btn.textContent='Submit Report'; }
+};
+
+document.getElementById('overlay').addEventListener('click',function(e){ if(e.target===this)closeModal(); });
+document.getElementById('init-t').textContent=hhmm(new Date());
+</script>
+</body>
+</html>

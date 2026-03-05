@@ -117,7 +117,7 @@
     apiKey: "AIzaSyAKGbbt_ARGWep8ggPuk_iE6R1xALkmJM8",
     authDomain: "trafficiq-3ef14.firebaseapp.com",
     projectId: "trafficiq-3ef14",
-    storageBucket: "trafficiq-3ef14.firebasestorage.app",
+    storageBucket: "trafficiq-3efty14.firebasestorage.app",
     messagingSenderId: "97313655693",
     appId: "1:97313655693:web:fee4304d7815bdceaf0bc4",
     databaseURL: "https://trafficiq-3ef14-default-rtdb.firebaseio.com"
@@ -130,11 +130,6 @@
   window.db = db;
   window.fb = { collection, doc, setDoc, onSnapshot, query, orderBy, serverTimestamp };
 
-  /* ── Stable session ID ──
-     Uses sessionStorage so the SAME tab always reuses the same key.
-     Navigating between pages in the same tab = same ID = still 1 user.
-     Opening a new tab = new sessionStorage = new ID = 2 users. Correct.
-  ── */
   let sessionId = sessionStorage.getItem('tiq-session');
   if (!sessionId) {
     sessionId = Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -144,18 +139,14 @@
   const presenceRef = ref(rtdb, `presence/shortcuts/${sessionId}`);
   const countRef    = ref(rtdb, 'presence/shortcuts');
 
-  // Register this session as online, overwrite if already exists (same tab revisit)
   set(presenceRef, { online: true, t: rtServerTimestamp() });
-  // Auto-remove when tab closes
   onDisconnect(presenceRef).remove();
 
-  // Live count of online users
   onValue(countRef, snap => {
     const count = snap.exists() ? Object.keys(snap.val()).length : 0;
     document.getElementById('onlineCount').textContent = count;
   });
 
-  // Load shortcuts.js AFTER Firebase is ready
   const s = document.createElement('script');
   s.src = 'shortcuts.js';
   document.body.appendChild(s);

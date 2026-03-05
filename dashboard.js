@@ -1,4 +1,4 @@
-/* TrafficIQ — dashboard.js (Leaflet + Firestore Presence Edition) */
+/* TrafficIQ — dashboard.js (Leaflet + Firestore Presence + Route Overlay) */
 'use strict';
 
 // 🔥 Gemini API
@@ -135,31 +135,31 @@ const VEH = {
 };
 
 /* ══════════════════════════════════════════════
-   STATE
+   STATE — TRACK ACTIVE ROUTE
 ══════════════════════════════════════════════ */
 const S = {
-  theme:        localStorage.getItem('tiq-theme') || 'light',
-  name:         localStorage.getItem('tiq-name')  || 'there',
-  vehicle:      'car',
-  currentPlace: 'Bhimavaram',
-  currentLevel: 'Low',
-  currentCong:  0,
+  theme:           localStorage.getItem('tiq-theme') || 'light',
+  name:            localStorage.getItem('tiq-name')  || 'there',
+  vehicle:         'car',
+  currentPlace:    'Bhimavaram',
+  currentLevel:    'Low',
+  currentCong:     0,
+  activeRouteId:   null,
+  activeRouteData: null,
+  selectedCityLat: null,
+  selectedCityLon: null,
 };
 
 /* ══════════════════════════════════════════════
-   LIVE USERS — Updated by Firebase module in HTML
-   This function is called automatically whenever
-   the Firestore presence collection changes.
+   LIVE USERS
 ══════════════════════════════════════════════ */
 function updateLiveUsers(count) {
   const rctEl = document.getElementById('rct');
   const avsEl = document.getElementById('avs');
-
   if (rctEl) {
     const from = parseInt(rctEl.textContent) || 0;
     if (isNaN(from) || from !== count) animateCounter(rctEl, isNaN(from) ? 0 : from, count, 700);
   }
-
   if (avsEl) {
     const EMOJIS = ['👨', '👩', '🧑', '👦', '👧', '🧔'];
     const show   = Math.min(count, 6);
@@ -168,27 +168,20 @@ function updateLiveUsers(count) {
       : '<div class="av" style="opacity:.4">👤</div>';
   }
 }
-
-// Expose so the Firebase module in dashboard.html can call it
 window.updateLiveUsers = updateLiveUsers;
-
-// Handle any count that arrived before dashboard.js was parsed
 if (typeof window.__pendingUserCount === 'number') {
   updateLiveUsers(window.__pendingUserCount);
   delete window.__pendingUserCount;
 }
 
 /* ══════════════════════════════════════════════
-   CITIES — FIRESTORE LIVE LISTENER (congestion only)
+   CITIES — FIRESTORE LIVE LISTENER
 ══════════════════════════════════════════════ */
 let _unsubCityDoc = null;
 
 function startCityDocListener(cityName) {
   if (_unsubCityDoc) { _unsubCityDoc(); _unsubCityDoc = null; }
-  if (!cityName || cityName === 'Bhimavaram') {
-    applyCongestionStats(0, null);
-    return;
-  }
+  if (!cityName || cityName === 'Bhimavaram') { applyCongestionStats(0, null); return; }
   const cityDocRef = window.doc(window.db, 'cities', cityName);
   _unsubCityDoc = window.onSnapshot(cityDocRef, (snap) => {
     if (!snap.exists()) { applyCongestionStats(0, null); return; }
@@ -196,25 +189,14 @@ function startCityDocListener(cityName) {
     const congPct = typeof d.congestionIndex === 'number'
       ? Math.min(100, Math.max(0, d.congestionIndex)) : 0;
     applyCongestionStats(congPct, d);
-  }, (err) => {
-    console.warn('[TrafficIQ] cities listener error:', err);
-    applyCongestionStats(0, null);
-  });
+  }, (err) => { applyCongestionStats(0, null); });
 }
 
-/* ── Congestion UI update ── */
 function applyCongestionStats(congPct, data) {
   const cfill = document.getElementById('cfill');
-  if (cfill) {
-    cfill.style.transition = 'width 1.8s cubic-bezier(.4,0,.2,1)';
-    cfill.style.width = congPct + '%';
-  }
+  if (cfill) { cfill.style.transition = 'width 1.8s cubic-bezier(.4,0,.2,1)'; cfill.style.width = congPct + '%'; }
   const clvl = document.getElementById('clvl');
-  if (clvl) {
-    clvl.textContent = congPct > 70 ? 'Heavy 🔴'
-                     : congPct > 45 ? 'Moderate 🟡'
-                     :                'Low 🟢';
-  }
+  if (clvl) clvl.textContent = congPct > 70 ? 'Heavy 🔴' : congPct > 45 ? 'Moderate 🟡' : 'Low 🟢';
   if (data) {
     const adlyEl = document.getElementById('adly');
     const asptEl = document.getElementById('aspt');
@@ -223,19 +205,13 @@ function applyCongestionStats(congPct, data) {
   }
 }
 
-/* ── Simulated congestion bar (not users) ── */
 function applySimulatedCongestion(congPct) {
   const cfill = document.getElementById('cfill');
   if (cfill) cfill.style.width = congPct + '%';
   const clvl = document.getElementById('clvl');
-  if (clvl) {
-    clvl.textContent = congPct > 70 ? 'Heavy 🔴'
-                     : congPct > 45 ? 'Moderate 🟡'
-                     :                'Low 🟢';
-  }
+  if (clvl) clvl.textContent = congPct > 70 ? 'Heavy 🔴' : congPct > 45 ? 'Moderate 🟡' : 'Low 🟢';
 }
 
-/* ── Typewriter for AI summary ── */
 let _aiTypeTimer = null;
 function typeAiSummary(text) {
   const at = document.getElementById('aitxt');
@@ -243,13 +219,9 @@ function typeAiSummary(text) {
   if (_aiTypeTimer) clearInterval(_aiTypeTimer);
   at.textContent = '';
   let i = 0;
-  _aiTypeTimer = setInterval(() => {
-    at.textContent += text[i++];
-    if (i >= text.length) clearInterval(_aiTypeTimer);
-  }, 18);
+  _aiTypeTimer = setInterval(() => { at.textContent += text[i++]; if (i >= text.length) clearInterval(_aiTypeTimer); }, 18);
 }
 
-/* ── Smooth counter animation ── */
 function animateCounter(el, from, to, durationMs) {
   const start = performance.now();
   const diff  = to - from;
@@ -263,36 +235,25 @@ function animateCounter(el, from, to, durationMs) {
 }
 
 /* ══════════════════════════════════════════════
-   AI SUMMARY — MANUAL REFRESH ONLY
+   AI SUMMARY
 ══════════════════════════════════════════════ */
 async function generateGeminiSummary(place, trafficLevel) {
   const prompt = `You are a smart urban traffic AI assistant.\n\nTraffic near ${place} is currently ${trafficLevel}.\n\nGenerate a realistic 2-3 line live traffic update. Mention possible reasons like signals, peak hours, construction work, or local events.\n\nKeep it natural and helpful.`;
   try {
-    const res = await fetch(GEMINI_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-    });
+    const res  = await fetch(GEMINI_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ contents:[{ parts:[{ text: prompt }] }] }) });
     const data = await res.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Traffic data is being analyzed...';
     typeAiSummary(text);
-  } catch (err) {
-    console.error('Gemini error:', err);
-    typeAiSummary('Unable to generate AI summary at the moment.');
-  }
+  } catch (err) { typeAiSummary('Unable to generate AI summary at the moment.'); }
 }
 
 function onAiRefreshClick() {
   const btn = document.getElementById('aiRefreshBtn');
   if (!btn) return;
-  btn.classList.add('spinning');
-  btn.disabled = true;
+  btn.classList.add('spinning'); btn.disabled = true;
   const at = document.getElementById('aitxt');
   if (at) at.textContent = 'Generating summary…';
-  generateGeminiSummary(S.currentPlace, S.currentLevel).finally(() => {
-    btn.classList.remove('spinning');
-    btn.disabled = false;
-  });
+  generateGeminiSummary(S.currentPlace, S.currentLevel).finally(() => { btn.classList.remove('spinning'); btn.disabled = false; });
 }
 window.onAiRefreshClick = onAiRefreshClick;
 
@@ -307,10 +268,7 @@ function setCityEverywhere(cityName) {
 function updateNavLinks(cityName) {
   const pages = ['shortcuts.html','time-taken.html','enter-traffics.html','info-passer.html','entertainment.html','trusted-users.html'];
   document.querySelectorAll('.nl, #mob a').forEach(a => {
-    pages.forEach(page => {
-      if (a.href && a.href.includes(page))
-        a.href = `${page}?city=${encodeURIComponent(cityName)}`;
-    });
+    pages.forEach(page => { if (a.href && a.href.includes(page)) a.href = `${page}?city=${encodeURIComponent(cityName)}`; });
   });
 }
 
@@ -322,20 +280,23 @@ const BHIMAVARAM_BOUNDS = L.latLngBounds([16.500, 81.460], [16.600, 81.560]);
 
 function initMap() {
   map = L.map('map', {
-    center:              [BHIMAVARAM.lat, BHIMAVARAM.lon],
-    zoom:                15,
-    minZoom:             13,
-    maxZoom:             19,
-    maxBounds:           BHIMAVARAM_BOUNDS,
-    maxBoundsViscosity:  0.9,
-    zoomControl:         true,
-    attributionControl:  true,
+    center:             [BHIMAVARAM.lat, BHIMAVARAM.lon],
+    zoom:               15,
+    minZoom:            13,
+    maxZoom:            19,
+    maxBounds:          BHIMAVARAM_BOUNDS,
+    maxBoundsViscosity: 0.9,
+    zoomControl:        true,
+    attributionControl: true,
   });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
   }).addTo(map);
   map.zoomControl.setPosition('bottomright');
+
+  window.map = map;
+
   [100, 400, 800].forEach(ms => setTimeout(() => map.invalidateSize(), ms));
   window.addEventListener('resize', () => map.invalidateSize());
 }
@@ -353,6 +314,8 @@ function makeVehicleIcon(type) {
 }
 
 function placeUserMarker(lat, lon, vehicleType) {
+  if (S.activeRouteId) return;
+
   if (userMarker) map.removeLayer(userMarker);
   userMarker = L.marker([lat, lon], { icon: makeVehicleIcon(vehicleType), zIndexOffset: 1000 }).addTo(map);
   userMarker.bindPopup(
@@ -382,19 +345,21 @@ function renderLocDrop(results) {
 locInput.addEventListener('input', () => {
   const q = locInput.value.toLowerCase().trim();
   if (!q) { locDrop.classList.remove('open'); return; }
-  renderLocDrop(BHIMAVARAM_PLACES.filter(p =>
-    p.name.toLowerCase().includes(q) || p.type.toLowerCase().includes(q)
-  ));
+  renderLocDrop(BHIMAVARAM_PLACES.filter(p => p.name.toLowerCase().includes(q) || p.type.toLowerCase().includes(q)));
 });
-locInput.addEventListener('focus', () => {
-  if (!locInput.value.trim()) renderLocDrop(BHIMAVARAM_PLACES);
-});
+locInput.addEventListener('focus', () => { if (!locInput.value.trim()) renderLocDrop(BHIMAVARAM_PLACES); });
 document.addEventListener('click', e => {
   const search = document.getElementById('locationSearch');
   if (search && !search.contains(e.target)) locDrop.classList.remove('open');
 });
 
 function selectPlace(lat, lon, name, type) {
+  if (S.activeRouteId) dismissRouteOverlay();
+
+  /* STORE SELECTED CITY LOCATION AS START POINT */
+  S.selectedCityLat = lat;
+  S.selectedCityLon = lon;
+
   locInput.value = name;
   locDrop.classList.remove('open');
   setCityEverywhere(name);
@@ -404,16 +369,15 @@ function selectPlace(lat, lon, name, type) {
   if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
   if (userMarker)   map.removeLayer(userMarker);
   userMarker = L.marker([lat, lon], { icon: makeVehicleIcon(S.vehicle), zIndexOffset: 1000 }).addTo(map);
-  userMarker.bindPopup(
-    `<b>${name}</b><br><small>${type} · ${S.vehicle.charAt(0).toUpperCase()+S.vehicle.slice(1)}</small>`,
-    { closeButton: false, offset: [0, -52] }
-  ).openPopup();
+  userMarker.bindPopup(`<b>${name}</b><br><small>${type} · ${S.vehicle.charAt(0).toUpperCase()+S.vehicle.slice(1)}</small>`, { closeButton: false, offset: [0, -52] }).openPopup();
   map.flyTo([lat, lon], 17, { animate: true, duration: 1.1, easeLinearity: 0.3 });
   populate(name);
 }
 window.selectPlace = selectPlace;
 
 function clearLocSearch() {
+  if (S.activeRouteId) dismissRouteOverlay();
+
   locInput.value = '';
   locDrop.classList.remove('open');
   if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
@@ -434,14 +398,9 @@ window.clearLocSearch = clearLocSearch;
 ══════════════════════════════════════════════ */
 function showGPSToast(msg) {
   const t = document.getElementById('gpsTst');
-  t.textContent = msg;
-  t.style.display = 'block';
-  t.style.opacity = '1';
+  t.textContent = msg; t.style.display = 'block'; t.style.opacity = '1';
   clearTimeout(t._timer);
-  t._timer = setTimeout(() => {
-    t.style.opacity = '0';
-    setTimeout(() => { t.style.display = 'none'; }, 500);
-  }, 3200);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; setTimeout(() => { t.style.display = 'none'; }, 500); }, 3200);
 }
 
 function nearestPlace(lat, lon) {
@@ -457,22 +416,26 @@ function nearestPlace(lat, lon) {
 
 function onGPSSuccess(lat, lon) {
   dismissOverlay();
+  if (S.activeRouteId) return;
+
   const nearby = nearestPlace(lat, lon);
   if (nearby) {
     showGPSToast('📍 Near ' + nearby.name);
     placeUserMarker(nearby.lat, nearby.lon, S.vehicle);
     map.flyTo([nearby.lat, nearby.lon], 17, { animate: true, duration: 1.2 });
-    setCityEverywhere(nearby.name);
-    updateNavLinks(nearby.name);
+    setCityEverywhere(nearby.name); updateNavLinks(nearby.name);
     localStorage.setItem('tiq-selected-lat', nearby.lat);
     localStorage.setItem('tiq-selected-lon', nearby.lon);
+    S.selectedCityLat = nearby.lat;
+    S.selectedCityLon = nearby.lon;
     populate(nearby.name);
   } else {
     showGPSToast('✅ Location found!');
     placeUserMarker(lat, lon, S.vehicle);
     map.flyTo([lat, lon], 17, { animate: true, duration: 1.2 });
-    localStorage.removeItem('tiq-selected-place');
-    localStorage.removeItem('tiq-city');
+    localStorage.removeItem('tiq-selected-place'); localStorage.removeItem('tiq-city');
+    S.selectedCityLat = lat;
+    S.selectedCityLon = lon;
     populate('Bhimavaram');
   }
 }
@@ -489,17 +452,14 @@ function showOverlayError(msg) {
   const err = document.getElementById('locOverlayError');
   btn.classList.remove('loading');
   btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg> Try Again`;
-  err.style.display = 'block';
-  err.textContent   = msg;
+  err.style.display = 'block'; err.textContent = msg;
 }
 
 function overlayAllowLocation() {
   if (!navigator.geolocation) { showOverlayError('GPS is not supported on this device.'); return; }
   const btn = document.getElementById('locOverlayBtn');
   const err = document.getElementById('locOverlayError');
-  btn.classList.add('loading');
-  btn.innerHTML    = 'Getting location…';
-  err.style.display = 'none';
+  btn.classList.add('loading'); btn.innerHTML = 'Getting location…'; err.style.display = 'none';
   navigator.geolocation.getCurrentPosition(
     pos => onGPSSuccess(pos.coords.latitude, pos.coords.longitude),
     e => {
@@ -523,11 +483,14 @@ function overlaySkipLocation() {
     document.getElementById('cname').textContent = savedPlace;
     placeUserMarker(savedLat, savedLon, S.vehicle);
     map.setView([savedLat, savedLon], 16);
-    populate(savedPlace);
-    updateNavLinks(savedPlace);
+    S.selectedCityLat = savedLat;
+    S.selectedCityLon = savedLon;
+    populate(savedPlace); updateNavLinks(savedPlace);
   } else {
     placeUserMarker(BHIMAVARAM.lat, BHIMAVARAM.lon, S.vehicle);
     map.setView([BHIMAVARAM.lat, BHIMAVARAM.lon], 14);
+    S.selectedCityLat = BHIMAVARAM.lat;
+    S.selectedCityLon = BHIMAVARAM.lon;
     populate('Bhimavaram');
   }
   showGPSToast('📍 Showing Bhimavaram — search to change location');
@@ -541,7 +504,7 @@ const VEH_LABELS = { car: 'Car', bike: 'Motorcycle', auto: 'Auto Rickshaw' };
 
 function showVehiclePreview(type) {
   const panel = document.getElementById('vehPreview');
-  document.getElementById('vehPreviewSvg').innerHTML   = VEH[type];
+  document.getElementById('vehPreviewSvg').innerHTML    = VEH[type];
   document.getElementById('vehPreviewLabel').textContent = VEH_LABELS[type] || type;
   panel.classList.add('show');
   clearTimeout(panel._timer);
@@ -570,56 +533,33 @@ function updateZoomPct() {
   const el = document.getElementById('zoomPct');
   if (el) el.textContent = 'Z ' + map.getZoom();
 }
-
 document.getElementById('zoomIn').addEventListener('click',    () => { animateZoomBtn('zoomIn');    map.zoomIn(1,  { animate: true }); });
 document.getElementById('zoomOut').addEventListener('click',   () => { animateZoomBtn('zoomOut');   map.zoomOut(1, { animate: true }); });
 document.getElementById('zoomReset').addEventListener('click', () => { animateZoomBtn('zoomReset'); map.flyTo([BHIMAVARAM.lat, BHIMAVARAM.lon], 15, { animate: true, duration: 0.8 }); });
 
 /* ══════════════════════════════════════════════
    POPULATE CARDS
-   ★ Active Users card is NEVER touched here.
-     It is driven exclusively by the Firestore
-     presence listener in dashboard.html.
-   ★ Congestion is simulated.
-   ★ AI Summary requires manual Refresh click.
 ══════════════════════════════════════════════ */
 function populate(locationName) {
   const displayName = locationName || 'Bhimavaram';
-
   document.getElementById('cname').textContent = displayName;
   document.getElementById('uname').textContent = S.name;
-
-  // Reset AI summary
   const at = document.getElementById('aitxt');
   if (at) at.textContent = 'Press Refresh to generate AI summary.';
-
-  // Reset congestion label
   const clvl = document.getElementById('clvl');
   if (clvl) clvl.textContent = '–';
-
-  // Animate panel in
   gsap.to('#panel', { opacity: 1, duration: .5, delay: .15 });
-  gsap.fromTo('.card', { y: 16, opacity: 0 }, {
-    y: 0, opacity: 1, stagger: .1, duration: .5, ease: 'power2.out', delay: .25,
-  });
-
-  // Simulate congestion (bar only — NOT users)
-  const levels     = ['Low', 'Moderate', 'Heavy'];
-  const randomLvl  = levels[Math.floor(Math.random() * 3)];
+  gsap.fromTo('.card', { y: 16, opacity: 0 }, { y: 0, opacity: 1, stagger: .1, duration: .5, ease: 'power2.out', delay: .25 });
+  const levels    = ['Low', 'Moderate', 'Heavy'];
+  const randomLvl = levels[Math.floor(Math.random() * 3)];
   let   congestion = 0;
-
   if      (randomLvl === 'Low')      congestion = Math.floor(Math.random() * 30);
   else if (randomLvl === 'Moderate') congestion = Math.floor(Math.random() * 40) + 40;
   else                               congestion = Math.floor(Math.random() * 30) + 70;
-
   S.currentPlace = displayName;
   S.currentLevel = randomLvl;
   S.currentCong  = congestion;
-
   applySimulatedCongestion(congestion);
-
-  // ⚠️  Active Users card is intentionally NOT updated here.
-  //     The Firestore onSnapshot in dashboard.html handles it.
 }
 
 /* ══════════════════════════════════════════════
@@ -637,13 +577,205 @@ document.getElementById('themeBtn').addEventListener('click', () => setTheme(S.t
    NAV
 ══════════════════════════════════════════════ */
 function goCityRoom() {
-  gsap.to('#panel', { opacity: 0, y: 14, duration: .3, ease: 'power2.in',
-    onComplete: () => location.href = 'enter-traffic.html' });
+  gsap.to('#panel', { opacity: 0, y: 14, duration: .3, ease: 'power2.in', onComplete: () => location.href = 'enter-traffic.html' });
 }
 window.goCityRoom = goCityRoom;
-document.getElementById('burger').addEventListener('click', () =>
-  document.getElementById('mob').classList.toggle('open')
-);
+document.getElementById('burger').addEventListener('click', () => document.getElementById('mob').classList.toggle('open'));
+
+/* ══════════════════════════════════════════════
+   ROUTE OVERLAY — PATH FROM CITY (START) TO SHORTCUT (END)
+   Shows cyan polyline path with green start marker and red end marker
+══════════════════════════════════════════════ */
+let _routeOverlayGroup = null;
+
+function applyRouteOverlay() {
+  const raw = sessionStorage.getItem('tiq-route-overlay');
+  if (!raw) return;
+  let route;
+  try { route = JSON.parse(raw); } catch (e) { sessionStorage.removeItem('tiq-route-overlay'); return; }
+  sessionStorage.removeItem('tiq-route-overlay');
+
+  setTimeout(() => drawRouteOnMap(route), 600);
+}
+
+function drawRouteOnMap(route) {
+  /* Mark route as active */
+  S.activeRouteId = route.id;
+  S.activeRouteData = route;
+
+  /* Remove previous overlay */
+  if (_routeOverlayGroup) { _routeOverlayGroup.clearLayers(); map.removeLayer(_routeOverlayGroup); }
+  _routeOverlayGroup = L.layerGroup().addTo(map);
+
+  /* ═══════════════════════════════════════════════
+     CREATE PATH FROM SELECTED CITY TO SHORTCUT
+  ═══════════════════════════════════════════════ */
+  const startLat = S.selectedCityLat;
+  const startLon = S.selectedCityLon;
+  const endLat = route.startLatLng[0];
+  const endLon = route.startLatLng[1];
+
+  /* Direct straight line path */
+  const routePath = [[startLat, startLon], [endLat, endLon]];
+
+  /* ── Glow underline (subtle green) ── */
+  L.polyline(routePath, {
+    color: '#22c55e', weight: 14, opacity: 0.12,
+    lineJoin: 'round', lineCap: 'round',
+  }).addTo(_routeOverlayGroup);
+
+  /* ── Main cyan route line ── */
+  const poly = L.polyline(routePath, {
+    color: '#00cfff', weight: 5, opacity: 0.9,
+    lineJoin: 'round', lineCap: 'round',
+  }).addTo(_routeOverlayGroup);
+
+  /* ── Animated dashes ── */
+  L.polyline(routePath, {
+    color: '#ffffff', weight: 2, opacity: 0.3,
+    dashArray: '8 10', lineJoin: 'round', lineCap: 'round',
+  }).addTo(_routeOverlayGroup);
+
+  /* ═══════════════════════════════════════════════
+     START MARKER (GREEN) — Selected City
+  ═══════════════════════════════════════════════ */
+  const startIcon = L.divIcon({
+    html: `<div style="width:40px;height:40px;border-radius:50%;background:#22c55e;border:5px solid #fff;box-shadow:0 0 0 3px rgba(34,197,94,.5),0 6px 20px rgba(0,0,0,.4);display:grid;place-items:center;"><div style="width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:inset 0 0 4px rgba(0,0,0,.2)"></div></div>`,
+    className: 'route-start-marker',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+  });
+
+  /* ═══════════════════════════════════════════════
+     END MARKER (RED) — Shortcut Location
+  ═══════════════════════════════════════════════ */
+  const endIcon = L.divIcon({
+    html: `<div style="width:40px;height:40px;border-radius:50%;background:#ef4444;border:5px solid #fff;box-shadow:0 0 0 3px rgba(239,68,68,.5),0 6px 20px rgba(0,0,0,.4);display:grid;place-items:center;"><div style="width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:inset 0 0 4px rgba(0,0,0,.2)"></div></div>`,
+    className: 'route-end-marker',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+  });
+
+  L.marker([startLat, startLon], { icon: startIcon, zIndexOffset: 2000 })
+    .addTo(_routeOverlayGroup)
+    .bindTooltip(`📍 START: ${S.currentPlace}`, { permanent: false, direction: 'right', className: 'tiq-map-tip' });
+
+  L.marker([endLat, endLon], { icon: endIcon, zIndexOffset: 2000 })
+    .addTo(_routeOverlayGroup)
+    .bindTooltip(`🏁 END: ${route.startLabel}`, { permanent: false, direction: 'right', className: 'tiq-map-tip' });
+
+  /* Fly to fit both markers */
+  map.flyToBounds(poly.getBounds(), { padding: [80, 80], duration: 1.3, easeLinearity: 0.4 });
+
+  /* Show info panel */
+  injectRoutePanel(route);
+}
+
+function dismissRouteOverlay() {
+  S.activeRouteId = null;
+  S.activeRouteData = null;
+
+  if (_routeOverlayGroup) {
+    _routeOverlayGroup.clearLayers();
+    map.removeLayer(_routeOverlayGroup);
+    _routeOverlayGroup = null;
+  }
+
+  const panel = document.getElementById('tiq-route-panel');
+  if (panel) {
+    panel.style.transition = 'opacity .25s, transform .25s';
+    panel.style.opacity = '0';
+    panel.style.transform = 'translateX(-50%) translateY(14px)';
+    setTimeout(() => panel.remove(), 280);
+  }
+}
+
+function injectRoutePanel(route) {
+  if (!document.getElementById('tiq-rp-styles')) {
+    const s = document.createElement('style');
+    s.id = 'tiq-rp-styles';
+    s.textContent = `
+      .tiq-map-tip {
+        background: rgba(6,12,30,.92) !important; color: #eef2ff !important;
+        border: 1px solid rgba(0,207,255,.22) !important; border-radius: 8px !important;
+        padding: 5px 10px !important; font-family:'Plus Jakarta Sans',sans-serif !important;
+        font-size:.7rem !important; white-space:nowrap !important;
+        box-shadow:0 4px 14px rgba(0,0,0,.35) !important; backdrop-filter:blur(10px) !important;
+      }
+      .tiq-map-tip::before { display:none !important; }
+      [data-theme="light"] .tiq-map-tip { background:rgba(240,245,255,.95)!important; color:#0f172a!important; }
+
+      #tiq-route-panel {
+        position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+        z-index:8000; display:flex; align-items:center; gap:14px;
+        min-width:300px; max-width:min(560px, 92vw);
+        background:rgba(6,12,30,.93); border:1px solid rgba(0,207,255,.28);
+        border-radius:16px; padding:14px 16px;
+        backdrop-filter:blur(20px);
+        box-shadow:0 8px 32px rgba(0,0,0,.4),0 0 0 1px rgba(0,207,255,.08);
+        font-family:'Plus Jakarta Sans',sans-serif;
+        animation:tiqPanelIn .4s cubic-bezier(.22,1,.36,1) both;
+      }
+      @keyframes tiqPanelIn { from{opacity:0;transform:translateX(-50%) translateY(18px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+      [data-theme="light"] #tiq-route-panel {
+        background:rgba(240,245,255,.96); border-color:rgba(26,115,232,.28);
+        box-shadow:0 8px 32px rgba(0,0,0,.14);
+      }
+      #tiq-route-panel .trp-ico { font-size:1.75rem; flex-shrink:0; line-height:1; }
+      #tiq-route-panel .trp-body { flex:1; min-width:0; }
+      #tiq-route-panel .trp-name {
+        font-family:'Space Grotesk',sans-serif; font-size:.92rem; font-weight:700;
+        color:#00cfff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px;
+      }
+      [data-theme="light"] #tiq-route-panel .trp-name { color:#1a73e8; }
+      #tiq-route-panel .trp-loc { font-size:.7rem; color:rgba(200,215,255,.58); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      [data-theme="light"] #tiq-route-panel .trp-loc { color:rgba(15,23,42,.52); }
+      #tiq-route-panel .trp-meta { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+      #tiq-route-panel .trp-badge { font-size:.6rem; font-weight:700; padding:2px 8px; border-radius:99px; letter-spacing:.04em; }
+      #tiq-route-panel .trp-badge.conf { background:rgba(34,197,94,.15); color:#22c55e; border:1px solid rgba(34,197,94,.3); }
+      #tiq-route-panel .trp-badge.city { background:rgba(0,207,255,.12); color:#00cfff; border:1px solid rgba(0,207,255,.25); }
+      [data-theme="light"] #tiq-route-panel .trp-badge.city { color:#1a73e8; border-color:rgba(26,115,232,.3); background:rgba(26,115,232,.1); }
+      #tiq-route-panel .trp-actions { display:flex; gap:7px; flex-shrink:0; align-items:center; }
+      #tiq-route-panel .trp-btn { padding:7px 13px; border-radius:8px; border:none; font-family:'Plus Jakarta Sans',sans-serif; font-size:.72rem; font-weight:600; cursor:pointer; transition:all .2s; }
+      #tiq-route-panel .trp-back { background:rgba(0,207,255,.1); color:#00cfff; border:1px solid rgba(0,207,255,.3); }
+      #tiq-route-panel .trp-back:hover { background:rgba(0,207,255,.22); transform:translateY(-1px); }
+      [data-theme="light"] #tiq-route-panel .trp-back { color:#1a73e8; border-color:rgba(26,115,232,.3); background:rgba(26,115,232,.08); }
+      #tiq-route-panel .trp-close { width:30px; height:30px; padding:0; background:rgba(239,68,68,.1); color:#ef4444; border:1px solid rgba(239,68,68,.25); display:grid; place-items:center; border-radius:8px; font-size:.9rem; }
+      #tiq-route-panel .trp-close:hover { background:rgba(239,68,68,.22); transform:scale(1.08); }
+    `;
+    document.head.appendChild(s);
+  }
+
+  document.getElementById('tiq-route-panel')?.remove();
+
+  const panel = document.createElement('div');
+  panel.id = 'tiq-route-panel';
+  panel.innerHTML = `
+    <div class="trp-ico">${route.ico}</div>
+    <div class="trp-body">
+      <div class="trp-name">${route.name}</div>
+      <div class="trp-loc">${S.currentPlace} → ${route.startLabel}</div>
+      <div class="trp-meta">
+        ${route.conf > 0 ? `<span class="trp-badge conf">⬤ ${route.conf}% confidence</span>` : ''}
+        <span class="trp-badge city">${route.city}</span>
+      </div>
+    </div>
+    <div class="trp-actions">
+      <button class="trp-btn trp-back" id="trpBackBtn">← Shortcuts</button>
+      <button class="trp-btn trp-close" id="trpCloseBtn" title="Dismiss">✕</button>
+    </div>`;
+  document.body.appendChild(panel);
+
+  document.getElementById('trpBackBtn').addEventListener('click', () => {
+    window.location.href = `shortcuts.html?city=${encodeURIComponent(route.city)}`;
+  });
+
+  document.getElementById('trpCloseBtn').addEventListener('click', () => {
+    dismissRouteOverlay();
+  });
+
+  setTimeout(() => document.getElementById('trpCloseBtn')?.click(), 45000);
+}
 
 /* ══════════════════════════════════════════════
    BOOT
@@ -654,18 +786,22 @@ window.addEventListener('DOMContentLoaded', () => {
   updateZoomPct();
   gsap.to('#nav', { y: 0, opacity: 1, duration: .65, ease: 'power3.out', delay: .2 });
 
-  if (navigator.permissions) {
-    navigator.permissions.query({ name: 'geolocation' }).then(result => {
-      if (result.state === 'granted') {
-        dismissOverlay();
-        navigator.geolocation.getCurrentPosition(
-          pos => onGPSSuccess(pos.coords.latitude, pos.coords.longitude),
-          ()  => loadSavedOrDefault(),
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-        );
-      } else { loadSavedOrDefault(); }
-    }).catch(() => loadSavedOrDefault());
-  } else { loadSavedOrDefault(); }
+  applyRouteOverlay();
+
+  if (!S.activeRouteId) {
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' }).then(result => {
+        if (result.state === 'granted') {
+          dismissOverlay();
+          navigator.geolocation.getCurrentPosition(
+            pos => onGPSSuccess(pos.coords.latitude, pos.coords.longitude),
+            ()  => loadSavedOrDefault(),
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+          );
+        } else { loadSavedOrDefault(); }
+      }).catch(() => loadSavedOrDefault());
+    } else { loadSavedOrDefault(); }
+  }
 });
 
 function loadSavedOrDefault() {
@@ -674,13 +810,16 @@ function loadSavedOrDefault() {
   const savedLon   = parseFloat(localStorage.getItem('tiq-selected-lon') || '');
   if (savedPlace && !isNaN(savedLat) && !isNaN(savedLon)) {
     document.getElementById('cname').textContent = savedPlace;
-    setCityEverywhere(savedPlace);
-    updateNavLinks(savedPlace);
+    setCityEverywhere(savedPlace); updateNavLinks(savedPlace);
     placeUserMarker(savedLat, savedLon, S.vehicle);
     map.setView([savedLat, savedLon], 16);
+    S.selectedCityLat = savedLat;
+    S.selectedCityLon = savedLon;
     populate(savedPlace);
   } else {
     map.setView([BHIMAVARAM.lat, BHIMAVARAM.lon], 14);
+    S.selectedCityLat = BHIMAVARAM.lat;
+    S.selectedCityLon = BHIMAVARAM.lon;
     populate('Bhimavaram');
   }
   setTimeout(() => map.invalidateSize(), 200);

@@ -6,6 +6,11 @@
     <title>Traffic IQ</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+    <!-- ✅ ADDED: Firebase Compat SDKs (must use compat for service worker compatibility) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -146,7 +151,6 @@
             transform: translateY(-50%);
             animation: panRoad 0.9s linear infinite;
         }
-        /* Second road line */
         .markings-2 {
             position: absolute; top: 25%; width: 200%; height: 2px;
             background: rgba(255,255,255,0.06);
@@ -263,7 +267,6 @@
             filter: drop-shadow(0 0 12px rgba(0,229,255,0.8)) drop-shadow(0 0 30px rgba(0,100,255,0.5));
         }
 
-        /* glitch layers */
         .title-word-iq::before,
         .title-word-iq::after {
             content: 'IQ';
@@ -328,10 +331,7 @@
         }
         .hud-tl { top: 20px; left: 20px; }
         .hud-tr { top: 20px; right: 20px; text-align: right; }
-        .hud-bl { bottom: 20px; left: 20px; }
         .hud-corner .hud-line { display: block; margin: 3px 0; }
-
-        /* Speed lines overlay — removed */
 
         /* KEYFRAMES */
         @keyframes panClouds { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
@@ -344,8 +344,6 @@
         @keyframes glitchTop { 0%,90%,100%{transform:translateX(-2px);} 91%{transform:translateX(3px);} 92%{transform:translateX(-1px);} }
         @keyframes glitchBot { 0%,90%,100%{transform:translateX(2px);} 91%{transform:translateX(-3px);} 92%{transform:translateX(1px);} }
         @keyframes expandLine { from{width:0;} to{width:280px;} }
-        @keyframes hudFadeIn { from{opacity:0;} to{opacity:1;} }
-        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
 
         /* scan line */
         .scanline {
@@ -353,9 +351,68 @@
             background: repeating-linear-gradient(to bottom, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
             pointer-events: none;
         }
+
+        /* NOTIFICATION PERMISSION BANNER */
+        #notif-banner {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: rgba(0, 229, 255, 0.1);
+            border-bottom: 1px solid rgba(0, 229, 255, 0.3);
+            backdrop-filter: blur(10px);
+            display: flex; align-items: center; justify-content: center; gap: 16px;
+            padding: 10px 20px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.75rem; color: #00e5ff; letter-spacing: 2px;
+            transform: translateY(-100%);
+            transition: transform 0.5s ease;
+        }
+        #notif-banner.show { transform: translateY(0); }
+        #notif-banner button {
+            background: #00e5ff; color: #000; border: none;
+            padding: 5px 14px; font-family: inherit; font-size: 0.7rem;
+            letter-spacing: 2px; cursor: pointer; border-radius: 3px;
+            transition: opacity 0.2s;
+        }
+        #notif-banner button:hover { opacity: 0.8; }
+        #notif-banner button.deny { background: transparent; color: rgba(0,229,255,0.4); border: 1px solid rgba(0,229,255,0.2); }
+
+        /* REPORT BOX */
+        #traffic-report-box {
+            position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+            background: rgba(5, 5, 20, 0.95);
+            border: 1px solid rgba(0,229,255,0.4);
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 0 0 30px rgba(0,229,255,0.15);
+            font-family: 'Share Tech Mono', monospace;
+            max-width: 300px;
+            animation: fadeInUp 0.4s ease;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        #traffic-report-box p {
+            margin: 0 0 12px;
+            font-size: 0.75rem; color: #00e5ff; letter-spacing: 2px;
+        }
+        .report-btn {
+            border: none; padding: 7px 12px;
+            margin: 3px; border-radius: 6px; cursor: pointer;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.7rem; letter-spacing: 1px;
+            transition: opacity 0.2s;
+        }
+        .report-btn:hover { opacity: 0.8; }
     </style>
 </head>
 <body>
+    <!-- NOTIFICATION PERMISSION BANNER -->
+    <div id="notif-banner">
+        <span>⚠ ENABLE TRAFFIC ALERTS FOR YOUR AREA</span>
+        <button id="notif-allow">ALLOW ALERTS</button>
+        <button class="deny" id="notif-deny">DISMISS</button>
+    </div>
+
     <div class="scene" id="scene">
 
         <!-- SKY -->
@@ -470,8 +527,6 @@
                             <stop offset="100%" stop-color="#7b2fff" stop-opacity="0"/>
                         </linearGradient>
                     </defs>
-
-                    <!-- Wheels -->
                     <g class="wheel wheel-back">
                         <circle cx="75" cy="95" r="19" fill="#080808"/>
                         <circle cx="75" cy="95" r="13" fill="url(#rim)"/>
@@ -486,23 +541,12 @@
                         <circle cx="245" cy="95" r="4" fill="#000"/>
                         <circle cx="245" cy="95" r="2" fill="#444"/>
                     </g>
-
-                    <!-- Body -->
                     <path d="M20 85 C20 70,30 60,60 60 L110 38 C140 24,180 24,210 38 L260 60 C290 60,312 70,316 85 L316 95 L280 95 C280 60,210 60,210 95 L110 95 C110 60,40 60,40 95 L20 95 Z" fill="url(#bodyPaint)"/>
-
-                    <!-- Neon underline accent -->
-                    <path d="M22 95 L40 95 C40 60,110 60,110 95 L210 95 C210 60,280 60,280 95 L314 95" fill="none" stroke="url(#accent)" stroke-width="2" opacity="0.9" filter="url(#glow)"/>
-
-                    <!-- Windshield -->
+                    <path d="M22 95 L40 95 C40 60,110 60,110 95 L210 95 C210 60,280 60,280 95 L314 95" fill="none" stroke="url(#accent)" stroke-width="2" opacity="0.9"/>
                     <path d="M72 60 L118 40 C142 28,178 28,202 40 L242 60 Z" fill="url(#glass)"/>
-                    <!-- Divider -->
                     <path d="M157 32 L162 60 L152 60 L148 32 Z" fill="url(#bodyPaint)" opacity="0.8"/>
-
-                    <!-- Taillights -->
                     <path d="M14 72 L24 68 L24 80 Z" fill="#ff2244" filter="drop-shadow(0 0 8px #ff0033)"/>
                     <path d="M14 80 L24 82 L24 92 Z" fill="#ff4400" filter="drop-shadow(0 0 6px #ff4400)" opacity="0.7"/>
-
-                    <!-- Headlight -->
                     <path d="M302 72 L316 75 L306 86 Z" fill="#e0f4ff" filter="drop-shadow(0 0 10px #ffffff)"/>
                 </svg>
             </div>
@@ -542,13 +586,176 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script>
     document.addEventListener("DOMContentLoaded", () => {
-        // CANVAS SMOKE ENGINE
+
+        // ─── ✅ FIREBASE INIT ────────────────────────────────────────────────────
+        const firebaseConfig = {
+            apiKey: "AIzaSyAKGbbt_ARGWep8ggPuk_iE6R1xALkmJM8",
+            authDomain: "trafficiq-3ef14.firebaseapp.com",
+            databaseURL: "https://trafficiq-3ef14-default-rtdb.firebaseio.com",
+            projectId: "trafficiq-3ef14",
+            storageBucket: "trafficiq-3ef14.firebasestorage.app",
+            messagingSenderId: "97313655693",
+            appId: "1:97313655693:web:fee4304d7815bdceaf0bc4",
+            measurementId: "G-N8CC0BE6HS"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const messaging = firebase.messaging();
+
+        // ─── ✅ REGISTER SERVICE WORKER ─────────────────────────────────────────
+        // (Handles background notifications when tab is NOT active)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/firebase-messaging-sw.js')
+                .then(reg => console.log('[FCM] Service Worker registered:', reg.scope))
+                .catch(err => console.error('[FCM] SW registration failed:', err));
+        }
+
+        // ─── ✅ GET FCM TOKEN ────────────────────────────────────────────────────
+        async function getFCMToken() {
+            try {
+                const token = await messaging.getToken({
+                    vapidKey: "BOmLruIptzj7OIqZy6v4YfR54tvk7RYM8k_h7KY5LUias4bRwatlIu0-2dMbsrwrdfZTfJAJyBq9j8puzwk3RbY"
+                });
+                if (token) {
+                    console.log('[FCM] Token:', token);
+                    // Save token — use this to send targeted push from Firebase Console
+                    localStorage.setItem('fcm_token', token);
+                }
+            } catch (err) {
+                console.error('[FCM] Token error:', err);
+            }
+        }
+
+        // ─── ✅ FOREGROUND NOTIFICATIONS (tab IS active) ─────────────────────────
+        messaging.onMessage(payload => {
+            console.log('[FCM] Foreground message:', payload);
+            const title = payload.notification?.title || '🚨 Traffic Alert';
+            const body  = payload.notification?.body  || 'Traffic issue near you.';
+            if (Notification.permission === 'granted') {
+                new Notification(title, {
+                    body,
+                    icon: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png'
+                });
+            }
+        });
+
+        // ─── TRAFFIC DATA ────────────────────────────────────────────────────────
+        const trafficIssues = [
+            {
+                lat: 16.5449,
+                lng: 81.5212,
+                message: "Accident near Bhimavaram Railway Station. Expected delay 30 minutes."
+            }
+        ];
+
+        const shownAlerts = new Set();
+
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a =
+                Math.sin(dLat / 2) ** 2 +
+                Math.cos(lat1 * Math.PI / 180) *
+                Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function sendNotification(title, body) {
+            if (Notification.permission === "granted") {
+                new Notification(title, {
+                    body,
+                    icon: "https://cdn-icons-png.flaticon.com/512/2972/2972185.png"
+                });
+            }
+        }
+
+        // ─── ✅ REPORT BOX (shown when no issues found nearby) ───────────────────
+        function showReportBox(lat, lng) {
+            if (document.getElementById('traffic-report-box')) return;
+
+            const box = document.createElement('div');
+            box.id = 'traffic-report-box';
+            box.innerHTML = `
+                <p>📍 ARE THERE ANY TRAFFIC ISSUES HERE?</p>
+                <button class="report-btn" style="background:#e53935;color:#fff" onclick="reportIssue('Accident',${lat},${lng})">🚗 ACCIDENT</button>
+                <button class="report-btn" style="background:#fb8c00;color:#fff" onclick="reportIssue('Road Block',${lat},${lng})">🚧 ROAD BLOCK</button>
+                <button class="report-btn" style="background:#f9a825;color:#000" onclick="reportIssue('Heavy Traffic',${lat},${lng})">🚦 HEAVY TRAFFIC</button>
+                <button class="report-btn" style="background:#00c853;color:#000" onclick="reportIssue('All Clear',${lat},${lng})">✅ ALL CLEAR</button>
+            `;
+            document.body.appendChild(box);
+        }
+
+        window.reportIssue = function(type, lat, lng) {
+            console.log(`[Report] ${type} at ${lat}, ${lng}`);
+            const box = document.getElementById('traffic-report-box');
+            if (box) box.remove();
+            sendNotification('✅ Report Submitted', `Thank you! "${type}" reported near your location.`);
+        };
+
+        // ─── GEOLOCATION CHECK ───────────────────────────────────────────────────
+        function checkTraffic(position) {
+            const { latitude: userLat, longitude: userLng } = position.coords;
+            let foundIssue = false;
+
+            trafficIssues.forEach((issue, idx) => {
+                const dist = getDistance(userLat, userLng, issue.lat, issue.lng);
+                const key = `issue_${idx}`;
+                if (dist <= 2 && !shownAlerts.has(key)) {
+                    shownAlerts.add(key);
+                    foundIssue = true;
+                    sendNotification("🚨 Traffic Alert Ahead", issue.message);
+                }
+            });
+
+            if (!foundIssue) {
+                showReportBox(userLat, userLng);
+            }
+        }
+
+        function startGeolocation() {
+            if (!navigator.geolocation) return;
+            navigator.geolocation.watchPosition(
+                checkTraffic,
+                (err) => console.warn("Geolocation error:", err.message),
+                { enableHighAccuracy: true, maximumAge: 15000, timeout: 10000 }
+            );
+        }
+
+        // ─── PERMISSION BANNER ───────────────────────────────────────────────────
+        const banner   = document.getElementById('notif-banner');
+        const allowBtn = document.getElementById('notif-allow');
+        const denyBtn  = document.getElementById('notif-deny');
+
+        function hideBanner() { banner.classList.remove('show'); }
+
+        allowBtn.addEventListener('click', () => {
+            Notification.requestPermission().then(perm => {
+                hideBanner();
+                if (perm === 'granted') {
+                    getFCMToken();       // ✅ Get FCM token after permission granted
+                    startGeolocation();
+                }
+            });
+        });
+
+        denyBtn.addEventListener('click', hideBanner);
+
+        if (Notification.permission === 'default') {
+            setTimeout(() => banner.classList.add('show'), 1200);
+        } else if (Notification.permission === 'granted') {
+            getFCMToken();              // ✅ Already granted — get token silently
+            startGeolocation();
+        }
+
+        // ─── CANVAS SMOKE ENGINE ────────────────────────────────────────────────
         const canvas = document.getElementById('smoke-canvas');
         const ctx = canvas.getContext('2d');
         const car = document.getElementById('car');
 
         function resizeCanvas() {
-            canvas.width = window.innerWidth;
+            canvas.width  = window.innerWidth;
             canvas.height = window.innerHeight;
         }
         window.addEventListener('resize', resizeCanvas);
@@ -565,16 +772,16 @@
         class Particle {
             constructor(x, y, isHeavy) {
                 this.x = x; this.y = y;
-                this.size = isHeavy ? Math.random() * 45 + 35 : Math.random() * 18 + 12;
-                this.speedX = isHeavy ? -(Math.random() * 9 + 3) : -(Math.random() * 3.5 + 1);
-                this.speedY = Math.random() * 2.5 - 1.2;
-                const v = Math.floor(Math.random() * 30 + 10);
-                this.color = `${v},${v},${v}`;
-                this.life = 0.75;
-                this.decay = isHeavy ? 0.014 : 0.022;
+                this.size    = isHeavy ? Math.random() * 45 + 35 : Math.random() * 18 + 12;
+                this.speedX  = isHeavy ? -(Math.random() * 9 + 3) : -(Math.random() * 3.5 + 1);
+                this.speedY  = Math.random() * 2.5 - 1.2;
+                const v      = Math.floor(Math.random() * 30 + 10);
+                this.color   = `${v},${v},${v}`;
+                this.life    = 0.75;
+                this.decay   = isHeavy ? 0.014 : 0.022;
             }
             update() { this.x += this.speedX; this.y += this.speedY; this.size += 0.6; this.life -= this.decay; }
-            draw() {
+            draw()   {
                 ctx.fillStyle = `rgba(${this.color},${Math.max(0, this.life)})`;
                 ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
             }
@@ -584,8 +791,11 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const pos = getExhaustPos();
             if (pos.x > -50 && pos.x < window.innerWidth + 100) {
-                if (!isSpeeding && Math.random() > 0.45) particles.push(new Particle(pos.x, pos.y, false));
-                else if (isSpeeding) for (let i = 0; i < 6; i++) particles.push(new Particle(pos.x, pos.y, true));
+                if (!isSpeeding && Math.random() > 0.45) {
+                    particles.push(new Particle(pos.x, pos.y, false));
+                } else if (isSpeeding) {
+                    for (let i = 0; i < 6; i++) particles.push(new Particle(pos.x, pos.y, true));
+                }
             }
             for (let i = particles.length - 1; i >= 0; i--) {
                 particles[i].update(); particles[i].draw();
@@ -595,35 +805,26 @@
         }
         animateParticles();
 
-        // GSAP TIMELINE
+        // ─── GSAP INTRO TIMELINE ────────────────────────────────────────────────
         const tl = gsap.timeline();
 
-        // HUD fades in
         tl.to(['.hud-tl', '.hud-tr'], { opacity: 1, duration: 1.2, stagger: 0.3, ease: 'power2.out' }, 0.3)
-        // Car drives in
-        .to(car, { left: "36%", duration: 2.2, ease: "power2.out" }, 0.5)
-        .to({}, { duration: 1.2 })
-        // Speed burst
-        .add(() => {
-            isSpeeding = true;
-            document.getElementById('scene').classList.add('fast-road');
-        })
-        .to(car, { left: "160%", y: -6, rotation: -2.5, duration: 0.75, ease: "power3.in" })
-        // Smoke screen
-        .to("#smoke-screen", { opacity: 1, duration: 0.7, ease: "power2.inOut" }, "-=0.15")
-        // Title reveal
-        .to("#title", { opacity: 1, scale: 1, filter: "blur(0px)", duration: 2.8, ease: "power3.out" })
-        // Divider line
-        .add(() => {
-            document.getElementById('title-divider').classList.add('animate');
-        }, "-=2")
-        // Enter prompt pulse
-        .to("#enter-prompt", {
-            opacity: 1, duration: 0.8, ease: "power2.inOut",
-            yoyo: true, repeat: -1, repeatDelay: 0.4
-        });
+          .to(car, { left: "36%", duration: 2.2, ease: "power2.out" }, 0.5)
+          .to({}, { duration: 1.2 })
+          .add(() => {
+              isSpeeding = true;
+              document.getElementById('scene').classList.add('fast-road');
+          })
+          .to(car, { left: "160%", y: -6, rotation: -2.5, duration: 0.75, ease: "power3.in" })
+          .to("#smoke-screen", { opacity: 1, duration: 0.7, ease: "power2.inOut" }, "-=0.15")
+          .to("#title", { opacity: 1, scale: 1, filter: "blur(0px)", duration: 2.8, ease: "power3.out" })
+          .add(() => { document.getElementById('title-divider').classList.add('animate'); }, "-=2")
+          .to("#enter-prompt", {
+              opacity: 1, duration: 0.8, ease: "power2.inOut",
+              yoyo: true, repeat: -1, repeatDelay: 0.4
+          });
 
-        // Redirect logic
+        // ─── NAVIGATION ─────────────────────────────────────────────────────────
         function goToSignIn() {
             gsap.to("body", {
                 opacity: 0, duration: 0.5,
@@ -631,10 +832,10 @@
             });
         }
 
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Enter') goToSignIn();
+        document.addEventListener('keydown', e => { if (e.key === 'Enter') goToSignIn(); });
+        document.body.addEventListener('click', e => {
+            if (!e.target.closest('#notif-banner') && !e.target.closest('#traffic-report-box')) goToSignIn();
         });
-        document.body.addEventListener('click', goToSignIn);
     });
     </script>
 </body>
