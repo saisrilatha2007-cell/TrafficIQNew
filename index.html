@@ -6,81 +6,334 @@
     <title>Traffic IQ</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body, html { width: 100%; height: 100vh; overflow: hidden; font-family: 'Rajdhani', sans-serif; background-color: #02020a; }
-        .scene { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .sky { position: absolute; top: 0; width: 100%; height: 75%; background: linear-gradient(to bottom, #010108 0%, #0d0a2a 50%, #1a1535 80%, #1e2a40 100%); z-index: 1; }
-        .stars-layer { position: absolute; top: 0; left: 0; width: 200%; height: 100%; background-size: 400px 300px; animation: panClouds 80s linear infinite; }
-        .stars-layer-1 { background-image: radial-gradient(1px 1px at 30px 40px, #fff, transparent), radial-gradient(1.5px 1.5px at 100px 80px, #fff, transparent), radial-gradient(1px 1px at 180px 130px, #fff, transparent), radial-gradient(2px 2px at 280px 50px, #fff, transparent), radial-gradient(1px 1px at 350px 110px, #fff, transparent), radial-gradient(1.5px 1.5px at 60px 200px, #e0e0ff, transparent), radial-gradient(1px 1px at 200px 250px, #fff, transparent), radial-gradient(2px 2px at 320px 170px, #ffeedd, transparent); opacity: 0.7; }
-        .stars-layer-2 { background-image: radial-gradient(1px 1px at 50px 60px, #aaa, transparent), radial-gradient(1px 1px at 140px 100px, #ccc, transparent), radial-gradient(1.5px 1.5px at 220px 30px, #bbb, transparent), radial-gradient(1px 1px at 370px 150px, #ddd, transparent), radial-gradient(1px 1px at 90px 240px, #aaa, transparent); opacity: 0.4; animation-duration: 120s; }
-        .moon { position: absolute; top: 10%; right: 12%; width: 70px; height: 70px; background: radial-gradient(circle at 35% 35%, #f0f4f7, #c8d8e8); border-radius: 50%; box-shadow: 0 0 30px rgba(200,220,240,0.6), 0 0 80px rgba(150,180,220,0.3), 0 0 150px rgba(100,140,200,0.15); z-index: 2; }
-        .moon::after { content: ''; position: absolute; top: 12px; left: 18px; width: 14px; height: 14px; background: rgba(180,200,220,0.3); border-radius: 50%; }
-        .aurora { position: absolute; top: 5%; left: 0; width: 100%; height: 40%; background: linear-gradient(180deg, transparent 0%, rgba(0,180,100,0.04) 30%, rgba(0,80,200,0.06) 60%, transparent 100%); z-index: 1; animation: auroraPulse 8s ease-in-out infinite; }
-        .clouds-container { position: absolute; top: 8%; width: 200%; display: flex; justify-content: space-around; animation: panClouds 60s linear infinite; z-index: 2; opacity: 0.35; }
+
+        body, html {
+            width: 100%; height: 100vh; overflow: hidden;
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #02020a;
+        }
+
+        .scene {
+            position: relative; width: 100%; height: 100%; display: flex;
+            align-items: center; justify-content: center; overflow: hidden;
+        }
+
+        /* SKY */
+        .sky {
+            position: absolute; top: 0; width: 100%; height: 75%;
+            background: linear-gradient(to bottom, #010108 0%, #0d0a2a 50%, #1a1535 80%, #1e2a40 100%);
+            z-index: 1;
+        }
+
+        /* STARS */
+        .stars-layer {
+            position: absolute; top: 0; left: 0; width: 200%; height: 100%;
+            background-size: 400px 300px;
+            animation: panClouds 80s linear infinite;
+        }
+        .stars-layer-1 {
+            background-image:
+                radial-gradient(1px 1px at 30px 40px, #fff, transparent),
+                radial-gradient(1.5px 1.5px at 100px 80px, #fff, transparent),
+                radial-gradient(1px 1px at 180px 130px, #fff, transparent),
+                radial-gradient(2px 2px at 280px 50px, #fff, transparent),
+                radial-gradient(1px 1px at 350px 110px, #fff, transparent),
+                radial-gradient(1.5px 1.5px at 60px 200px, #e0e0ff, transparent),
+                radial-gradient(1px 1px at 200px 250px, #fff, transparent),
+                radial-gradient(2px 2px at 320px 170px, #ffeedd, transparent);
+            opacity: 0.7;
+        }
+        .stars-layer-2 {
+            background-image:
+                radial-gradient(1px 1px at 50px 60px, #aaa, transparent),
+                radial-gradient(1px 1px at 140px 100px, #ccc, transparent),
+                radial-gradient(1.5px 1.5px at 220px 30px, #bbb, transparent),
+                radial-gradient(1px 1px at 370px 150px, #ddd, transparent),
+                radial-gradient(1px 1px at 90px 240px, #aaa, transparent);
+            opacity: 0.4;
+            animation-duration: 120s;
+        }
+
+        /* MOON */
+        .moon {
+            position: absolute; top: 10%; right: 12%; width: 70px; height: 70px;
+            background: radial-gradient(circle at 35% 35%, #f0f4f7, #c8d8e8);
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(200,220,240,0.6), 0 0 80px rgba(150,180,220,0.3), 0 0 150px rgba(100,140,200,0.15);
+            z-index: 2;
+        }
+        .moon::after {
+            content: ''; position: absolute; top: 12px; left: 18px;
+            width: 14px; height: 14px; background: rgba(180,200,220,0.3);
+            border-radius: 50%;
+        }
+
+        /* AURORA */
+        .aurora {
+            position: absolute; top: 5%; left: 0; width: 100%; height: 40%;
+            background: linear-gradient(180deg,
+                transparent 0%,
+                rgba(0,180,100,0.04) 30%,
+                rgba(0,80,200,0.06) 60%,
+                transparent 100%);
+            z-index: 1;
+            animation: auroraPulse 8s ease-in-out infinite;
+        }
+
+        /* CLOUDS */
+        .clouds-container {
+            position: absolute; top: 8%; width: 200%;
+            display: flex; justify-content: space-around;
+            animation: panClouds 60s linear infinite; z-index: 2; opacity: 0.35;
+        }
         .cloud { width: 150px; height: 48px; background: #12101f; border-radius: 50px; position: relative; }
         .cloud::before, .cloud::after { content: ''; position: absolute; background: #12101f; border-radius: 50%; }
         .cloud::before { width: 75px; height: 75px; top: -38px; left: 22px; }
         .cloud::after { width: 95px; height: 95px; top: -52px; right: 22px; }
+
+        /* CITYSCAPE */
         .cityscape-container { position: absolute; bottom: 28%; width: 100%; height: 60%; z-index: 3; }
         .city-scroll { display: flex; width: max-content; height: 100%; animation: panCity 28s linear infinite; }
         .city-segment { display: flex; align-items: flex-end; width: max-content; height: 100%; }
+
         .building { position: relative; margin: 0 -2px; filter: drop-shadow(-10px 5px 15px rgba(0,0,0,0.9)); }
-        .b1 { width: 140px; height: 380px; background: #060a10; background-image: radial-gradient(rgba(255,220,60,0.7) 1.5px, transparent 1.5px), radial-gradient(rgba(0,200,255,0.3) 1px, transparent 1px); background-size: 20px 28px, 20px 28px; background-position: 0 0, 10px 14px; }
+        .b1 {
+            width: 140px; height: 380px;
+            background: #060a10;
+            background-image:
+                radial-gradient(rgba(255,220,60,0.7) 1.5px, transparent 1.5px),
+                radial-gradient(rgba(0,200,255,0.3) 1px, transparent 1px);
+            background-size: 20px 28px, 20px 28px;
+            background-position: 0 0, 10px 14px;
+        }
         .b2 { width: 180px; height: 240px; background: #0a0d15; border-top: 10px solid #0a2a22; }
-        .b3 { width: 150px; height: 320px; background: #04060a; border-radius: 12px 12px 0 0; background-image: linear-gradient(to right, rgba(0,100,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,100,255,0.08) 1px, transparent 1px); background-size: 15px 20px; }
-        .b4 { width: 120px; height: 200px; background: #080b12; background-image: radial-gradient(rgba(255,150,0,0.5) 1px, transparent 1px); background-size: 18px 22px; }
-        .b1::after { content: ''; position: absolute; top: -25px; left: 50%; transform: translateX(-50%); width: 3px; height: 25px; background: #111; }
-        .tree { position: relative; display: flex; flex-direction: column; align-items: center; z-index: 10; margin: 0 -20px; transform: translateY(10px); filter: drop-shadow(-10px 8px 8px rgba(0,0,0,0.9)); }
+        .b3 { width: 150px; height: 320px; background: #04060a; border-radius: 12px 12px 0 0;
+              background-image: linear-gradient(to right, rgba(0,100,255,0.1) 1px, transparent 1px),
+                                linear-gradient(to bottom, rgba(0,100,255,0.08) 1px, transparent 1px);
+              background-size: 15px 20px; }
+        .b4 { width: 120px; height: 200px; background: #080b12;
+              background-image: radial-gradient(rgba(255,150,0,0.5) 1px, transparent 1px);
+              background-size: 18px 22px; }
+
+        /* ANTENNA */
+        .b1::after {
+            content: ''; position: absolute; top: -25px; left: 50%; transform: translateX(-50%);
+            width: 3px; height: 25px; background: #111;
+        }
+
+        /* TREES */
+        .tree { position: relative; display: flex; flex-direction: column; align-items: center;
+                z-index: 10; margin: 0 -20px; transform: translateY(10px);
+                filter: drop-shadow(-10px 8px 8px rgba(0,0,0,0.9)); }
         .trunk { width: 12px; height: 40px; background: #06030a; }
         .pine .leaves { width: 0; height: 0; border-left: 32px solid transparent; border-right: 32px solid transparent; border-bottom: 85px solid #040c06; margin-bottom: -10px; }
         .oak .leaves { width: 85px; height: 85px; background: #06120a; border-radius: 50%; margin-bottom: -22px; }
         .cypress .leaves { width: 35px; height: 100px; background: #030e05; border-radius: 50%; margin-bottom: -12px; }
+
+        /* GROUND */
         .grass-strip { position: absolute; bottom: 24%; width: 100%; height: 5%; background: #0a1a0c; border-top: 3px solid #122515; z-index: 4; }
-        .road { position: absolute; bottom: 0; width: 100%; height: 24%; background: linear-gradient(to bottom, #111418 0%, #0d1014 100%); border-top: 4px solid #0a0d10; z-index: 5; box-shadow: inset 0 20px 50px rgba(0,0,0,0.9); }
-        .markings { position: absolute; top: 50%; width: 200%; height: 8px; background: repeating-linear-gradient(to right, transparent, transparent 80px, rgba(255,255,255,0.6) 80px, rgba(255,255,255,0.6) 160px); transform: translateY(-50%); animation: panRoad 0.9s linear infinite; }
-        .markings-2 { position: absolute; top: 25%; width: 200%; height: 2px; background: rgba(255,255,255,0.06); }
-        .streetlights-container { position: absolute; bottom: 24%; width: 100%; height: 180px; z-index: 6; pointer-events: none; }
-        .streetlights-scroll { display: flex; width: max-content; height: 100%; animation: panCity 4.5s linear infinite; }
+        .road {
+            position: absolute; bottom: 0; width: 100%; height: 24%;
+            background: linear-gradient(to bottom, #111418 0%, #0d1014 100%);
+            border-top: 4px solid #0a0d10; z-index: 5;
+            box-shadow: inset 0 20px 50px rgba(0,0,0,0.9);
+        }
+        .markings {
+            position: absolute; top: 50%; width: 200%; height: 8px;
+            background: repeating-linear-gradient(to right, transparent, transparent 80px, rgba(255,255,255,0.6) 80px, rgba(255,255,255,0.6) 160px);
+            transform: translateY(-50%);
+            animation: panRoad 0.9s linear infinite;
+        }
+        /* Second road line */
+        .markings-2 {
+            position: absolute; top: 25%; width: 200%; height: 2px;
+            background: rgba(255,255,255,0.06);
+        }
+
+        /* STREETLIGHTS */
+        .streetlights-container {
+            position: absolute; bottom: 24%;
+            width: 100%; height: 180px; z-index: 6; pointer-events: none;
+        }
+        .streetlights-scroll {
+            display: flex; width: max-content; height: 100%;
+            animation: panCity 4.5s linear infinite;
+        }
         .streetlight-group { display: flex; align-items: flex-end; width: max-content; height: 100%; }
-        .streetlight-front { position: relative; width: 6px; height: 145px; background: linear-gradient(to top, #080808, #1a1a1a); margin: 0 340px; }
-        .streetlight-front::before { content: ''; position: absolute; bottom: -2px; left: -7px; width: 20px; height: 10px; background: #050505; border-radius: 3px 3px 0 0; }
-        .streetlight-front::after { content: ''; position: absolute; top: -8px; left: -22px; width: 48px; height: 13px; background: #fffbe0; border-radius: 12px; box-shadow: 0 0 30px 12px rgba(255, 235, 80, 0.45), 0 15px 50px rgba(255,230,0,0.25); }
+        .streetlight-front {
+            position: relative; width: 6px; height: 145px;
+            background: linear-gradient(to top, #080808, #1a1a1a);
+            margin: 0 340px;
+        }
+        .streetlight-front::before {
+            content: ''; position: absolute; bottom: -2px; left: -7px;
+            width: 20px; height: 10px; background: #050505; border-radius: 3px 3px 0 0;
+        }
+        .streetlight-front::after {
+            content: ''; position: absolute; top: -8px; left: -22px;
+            width: 48px; height: 13px; background: #fffbe0; border-radius: 12px;
+            box-shadow: 0 0 30px 12px rgba(255, 235, 80, 0.45), 0 15px 50px rgba(255,230,0,0.25);
+        }
+
+        /* CANVAS */
         #smoke-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 15; pointer-events: none; }
-        #smoke-screen { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(ellipse at center, rgba(5,5,20,0.98) 0%, rgba(0,0,5,1) 100%); opacity: 0; pointer-events: none; z-index: 18; }
+        #smoke-screen {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(ellipse at center, rgba(5,5,20,0.98) 0%, rgba(0,0,5,1) 100%);
+            opacity: 0; pointer-events: none; z-index: 18;
+        }
+
+        /* CAR */
         .car-wrapper { position: absolute; bottom: 7%; left: -30%; z-index: 10; width: 320px; }
         .car-svg { filter: drop-shadow(-15px 10px 25px rgba(0,0,0,0.95)); position: relative; z-index: 2; }
         .car-body { animation: engineVibrate 0.1s linear infinite; }
-        .headlight-beam { position: absolute; top: 70px; left: 308px; width: 500px; height: 50px; background: linear-gradient(to right, rgba(200,240,255,0.7), transparent); clip-path: polygon(0 35%, 100% 0, 100% 100%, 0 65%); z-index: 1; filter: blur(4px); transform: rotate(2deg); }
-        .headlight-beam-2 { position: absolute; top: 78px; left: 308px; width: 300px; height: 30px; background: linear-gradient(to right, rgba(255,255,255,0.4), transparent); clip-path: polygon(0 30%, 100% 0, 100% 100%, 0 70%); z-index: 1; filter: blur(2px); transform: rotate(4deg); }
-        .car-shadow { position: absolute; bottom: -8px; left: 10px; width: 280px; height: 12px; background: rgba(0,0,0,0.95); border-radius: 50%; filter: blur(7px); z-index: -1; transform: skewX(40deg); animation: shadowPulse 0.1s linear infinite; }
+
+        .headlight-beam {
+            position: absolute; top: 70px; left: 308px; width: 500px; height: 50px;
+            background: linear-gradient(to right, rgba(200,240,255,0.7), transparent);
+            clip-path: polygon(0 35%, 100% 0, 100% 100%, 0 65%);
+            z-index: 1; filter: blur(4px);
+            transform: rotate(2deg);
+        }
+        .headlight-beam-2 {
+            position: absolute; top: 78px; left: 308px; width: 300px; height: 30px;
+            background: linear-gradient(to right, rgba(255,255,255,0.4), transparent);
+            clip-path: polygon(0 30%, 100% 0, 100% 100%, 0 70%);
+            z-index: 1; filter: blur(2px);
+            transform: rotate(4deg);
+        }
+
+        .car-shadow {
+            position: absolute; bottom: -8px; left: 10px; width: 280px; height: 12px;
+            background: rgba(0,0,0,0.95); border-radius: 50%; filter: blur(7px); z-index: -1;
+            transform: skewX(40deg); animation: shadowPulse 0.1s linear infinite;
+        }
+
         .wheel { animation: spinWheel 0.3s linear infinite; }
         .wheel-back { transform-origin: 75px 95px; }
         .wheel-front { transform-origin: 245px 95px; }
+
+        /* FAST STATE */
         .fast-road .markings { animation-duration: 0.12s; }
         .fast-road .city-scroll { animation-duration: 5s; }
         .fast-road .streetlights-scroll { animation-duration: 0.7s; }
         .fast-road .clouds-container { animation-duration: 10s; }
         .fast-road .wheel { animation-duration: 0.04s; }
-        .title-container { position: absolute; z-index: 20; text-align: center; opacity: 0; transform: scale(0.7); filter: blur(20px); will-change: transform, opacity, filter; display: flex; flex-direction: column; align-items: center; }
-        .title-eyebrow { font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; letter-spacing: 8px; color: #00e5ff; text-transform: uppercase; margin-bottom: 4px; opacity: 0.8; }
-        .title-main { display: flex; align-items: baseline; gap: 4px; }
-        .title-word-traffic { font-family: 'Bebas Neue', sans-serif; font-size: 8rem; line-height: 0.9; color: #e0f0ff; letter-spacing: 6px; text-shadow: 0 0 20px rgba(0,229,255,0.4), 0 0 60px rgba(0,150,255,0.2), 2px 2px 0 rgba(0,0,0,0.8); }
-        .title-word-iq { font-family: 'Bebas Neue', sans-serif; font-size: 8rem; line-height: 0.9; color: transparent; -webkit-text-stroke: 2.5px #00e5ff; letter-spacing: 6px; text-shadow: none; position: relative; filter: drop-shadow(0 0 12px rgba(0,229,255,0.8)) drop-shadow(0 0 30px rgba(0,100,255,0.5)); }
-        .title-word-iq::before, .title-word-iq::after { content: 'IQ'; position: absolute; top: 0; left: 0; font-family: 'Bebas Neue', sans-serif; font-size: 8rem; letter-spacing: 6px; }
-        .title-word-iq::before { color: transparent; -webkit-text-stroke: 2px #ff0055; clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%); transform: translateX(-2px); opacity: 0.6; animation: glitchTop 4s infinite; }
-        .title-word-iq::after { color: transparent; -webkit-text-stroke: 2px #00ffaa; clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%); transform: translateX(2px); opacity: 0.5; animation: glitchBot 4s infinite; }
-        .title-divider { width: 0; height: 2px; background: linear-gradient(to right, transparent, #00e5ff, #7b2fff, transparent); margin: 10px auto 12px; animation: expandLine 0.8s ease forwards; animation-play-state: paused; }
+
+        /* ======================== TITLE ======================== */
+        .title-container {
+            position: absolute; z-index: 20; text-align: center;
+            opacity: 0; transform: scale(0.7); filter: blur(20px);
+            will-change: transform, opacity, filter;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        .title-eyebrow {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.85rem; letter-spacing: 8px; color: #00e5ff;
+            text-transform: uppercase; margin-bottom: 4px;
+            opacity: 0.8;
+        }
+
+        .title-main {
+            display: flex; align-items: baseline; gap: 4px;
+        }
+
+        .title-word-traffic {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 8rem; line-height: 0.9;
+            color: #e0f0ff;
+            letter-spacing: 6px;
+            text-shadow:
+                0 0 20px rgba(0,229,255,0.4),
+                0 0 60px rgba(0,150,255,0.2),
+                2px 2px 0 rgba(0,0,0,0.8);
+        }
+
+        .title-word-iq {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 8rem; line-height: 0.9;
+            color: transparent;
+            -webkit-text-stroke: 2.5px #00e5ff;
+            letter-spacing: 6px;
+            text-shadow: none;
+            position: relative;
+            filter: drop-shadow(0 0 12px rgba(0,229,255,0.8)) drop-shadow(0 0 30px rgba(0,100,255,0.5));
+        }
+
+        /* glitch layers */
+        .title-word-iq::before,
+        .title-word-iq::after {
+            content: 'IQ';
+            position: absolute; top: 0; left: 0;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 8rem; letter-spacing: 6px;
+        }
+        .title-word-iq::before {
+            color: transparent;
+            -webkit-text-stroke: 2px #ff0055;
+            clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+            transform: translateX(-2px);
+            opacity: 0.6;
+            animation: glitchTop 4s infinite;
+        }
+        .title-word-iq::after {
+            color: transparent;
+            -webkit-text-stroke: 2px #00ffaa;
+            clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
+            transform: translateX(2px);
+            opacity: 0.5;
+            animation: glitchBot 4s infinite;
+        }
+
+        .title-divider {
+            width: 0; height: 2px;
+            background: linear-gradient(to right, transparent, #00e5ff, #7b2fff, transparent);
+            margin: 10px auto 12px;
+            animation: expandLine 0.8s ease forwards;
+            animation-play-state: paused;
+        }
         .title-divider.animate { animation-play-state: running; }
-        .title-tagline { font-family: 'Rajdhani', sans-serif; font-weight: 300; font-size: 1.1rem; letter-spacing: 4px; color: rgba(180,200,230,0.6); text-transform: uppercase; margin-top: 2px; }
-        #enter-prompt { position: absolute; bottom: 12%; z-index: 20; color: #b8f0ff; font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; letter-spacing: 3px; opacity: 0; text-transform: uppercase; }
-        #enter-prompt span { color: #00e5ff; text-shadow: 0 0 10px rgba(0,229,255,0.8), 0 0 20px rgba(0,229,255,0.4); }
-        .hud-corner { position: absolute; z-index: 20; font-family: 'Share Tech Mono', monospace; font-size: 0.65rem; color: rgba(0,229,255,0.3); letter-spacing: 2px; opacity: 0; }
+
+        .title-tagline {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 300; font-size: 1.1rem; letter-spacing: 4px;
+            color: rgba(180,200,230,0.6); text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        /* ENTER PROMPT */
+        #enter-prompt {
+            position: absolute; bottom: 12%; z-index: 20;
+            color: #b8f0ff;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem; letter-spacing: 3px;
+            opacity: 0;
+            text-transform: uppercase;
+        }
+        #enter-prompt span {
+            color: #00e5ff;
+            text-shadow: 0 0 10px rgba(0,229,255,0.8), 0 0 20px rgba(0,229,255,0.4);
+        }
+
+        /* HUD corner elements */
+        .hud-corner {
+            position: absolute; z-index: 20;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.65rem; color: rgba(0,229,255,0.3);
+            letter-spacing: 2px;
+            opacity: 0;
+        }
         .hud-tl { top: 20px; left: 20px; }
         .hud-tr { top: 20px; right: 20px; text-align: right; }
+        .hud-bl { bottom: 20px; left: 20px; }
         .hud-corner .hud-line { display: block; margin: 3px 0; }
+
+        /* Speed lines overlay — removed */
+
+        /* KEYFRAMES */
         @keyframes panClouds { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         @keyframes panCity { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         @keyframes panRoad { from { transform: translateX(0) translateY(-50%); } to { transform: translateX(-160px) translateY(-50%); } }
@@ -91,31 +344,21 @@
         @keyframes glitchTop { 0%,90%,100%{transform:translateX(-2px);} 91%{transform:translateX(3px);} 92%{transform:translateX(-1px);} }
         @keyframes glitchBot { 0%,90%,100%{transform:translateX(2px);} 91%{transform:translateX(-3px);} 92%{transform:translateX(1px);} }
         @keyframes expandLine { from{width:0;} to{width:280px;} }
-        .scanline { position: absolute; z-index: 19; top: 0; left: 0; width: 100%; height: 100%; background: repeating-linear-gradient(to bottom, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px); pointer-events: none; }
+        @keyframes hudFadeIn { from{opacity:0;} to{opacity:1;} }
+        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
 
-        /* NOTIFICATION BANNER */
-        #notif-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(0, 229, 255, 0.1); border-bottom: 1px solid rgba(0, 229, 255, 0.3); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; gap: 16px; padding: 10px 20px; font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; color: #00e5ff; letter-spacing: 2px; transform: translateY(-100%); transition: transform 0.5s ease; }
-        #notif-banner.show { transform: translateY(0); }
-        #notif-banner button { background: #00e5ff; color: #000; border: none; padding: 5px 14px; font-family: inherit; font-size: 0.7rem; letter-spacing: 2px; cursor: pointer; border-radius: 3px; transition: opacity 0.2s; }
-        #notif-banner button:hover { opacity: 0.8; }
-        #notif-banner button.deny { background: transparent; color: rgba(0,229,255,0.4); border: 1px solid rgba(0,229,255,0.2); }
-
-        /* REPORT BOX */
-        #traffic-report-box { position: fixed; bottom: 20px; right: 20px; z-index: 9999; background: rgba(5, 5, 20, 0.95); border: 1px solid rgba(0,229,255,0.4); border-radius: 12px; padding: 16px 20px; box-shadow: 0 0 30px rgba(0,229,255,0.15); font-family: 'Share Tech Mono', monospace; max-width: 300px; animation: fadeInUp 0.4s ease; }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        #traffic-report-box p { margin: 0 0 12px; font-size: 0.75rem; color: #00e5ff; letter-spacing: 2px; }
-        .report-btn { border: none; padding: 7px 12px; margin: 3px; border-radius: 6px; cursor: pointer; font-family: 'Share Tech Mono', monospace; font-size: 0.7rem; letter-spacing: 1px; transition: opacity 0.2s; }
-        .report-btn:hover { opacity: 0.8; }
+        /* scan line */
+        .scanline {
+            position: absolute; z-index: 19; top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(to bottom, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
-    <div id="notif-banner">
-        <span>⚠ ENABLE TRAFFIC ALERTS FOR YOUR AREA</span>
-        <button id="notif-allow">ALLOW ALERTS</button>
-        <button class="deny" id="notif-deny">DISMISS</button>
-    </div>
-
     <div class="scene" id="scene">
+
+        <!-- SKY -->
         <div class="sky">
             <div class="stars-layer stars-layer-1"></div>
             <div class="stars-layer stars-layer-2"></div>
@@ -130,47 +373,75 @@
                 <div class="cloud" style="transform:scale(1.1);margin-top:10px;"></div>
             </div>
         </div>
+
+        <!-- CITY -->
         <div class="cityscape-container">
             <div class="city-scroll">
                 <div class="city-segment">
-                    <div class="building b1"></div><div class="building b4"></div><div class="building b2"></div>
+                    <div class="building b1"></div>
+                    <div class="building b4"></div>
+                    <div class="building b2"></div>
                     <div class="tree pine"><div class="leaves"></div><div class="trunk"></div></div>
-                    <div class="building b3"></div><div class="building b1"></div>
+                    <div class="building b3"></div>
+                    <div class="building b1"></div>
                     <div class="tree oak"><div class="leaves"></div><div class="trunk"></div></div>
-                    <div class="building b2"></div><div class="building b4"></div><div class="building b3"></div>
+                    <div class="building b2"></div>
+                    <div class="building b4"></div>
+                    <div class="building b3"></div>
                     <div class="tree cypress"><div class="leaves"></div><div class="trunk"></div></div>
-                    <div class="building b1"></div><div class="building b2"></div>
+                    <div class="building b1"></div>
+                    <div class="building b2"></div>
                     <div class="tree pine"><div class="leaves"></div><div class="trunk"></div></div>
                     <div class="building b3"></div>
                 </div>
                 <div class="city-segment">
-                    <div class="building b1"></div><div class="building b4"></div><div class="building b2"></div>
+                    <div class="building b1"></div>
+                    <div class="building b4"></div>
+                    <div class="building b2"></div>
                     <div class="tree pine"><div class="leaves"></div><div class="trunk"></div></div>
-                    <div class="building b3"></div><div class="building b1"></div>
+                    <div class="building b3"></div>
+                    <div class="building b1"></div>
                     <div class="tree oak"><div class="leaves"></div><div class="trunk"></div></div>
-                    <div class="building b2"></div><div class="building b4"></div><div class="building b3"></div>
+                    <div class="building b2"></div>
+                    <div class="building b4"></div>
+                    <div class="building b3"></div>
                     <div class="tree cypress"><div class="leaves"></div><div class="trunk"></div></div>
-                    <div class="building b1"></div><div class="building b2"></div>
+                    <div class="building b1"></div>
+                    <div class="building b2"></div>
                     <div class="tree pine"><div class="leaves"></div><div class="trunk"></div></div>
                     <div class="building b3"></div>
                 </div>
             </div>
         </div>
+
+        <!-- GROUND -->
         <div class="grass-strip"></div>
-        <div class="road"><div class="markings-2"></div><div class="markings"></div></div>
+        <div class="road">
+            <div class="markings-2"></div>
+            <div class="markings"></div>
+        </div>
+
+        <!-- STREETLIGHTS -->
         <div class="streetlights-container">
             <div class="streetlights-scroll">
                 <div class="streetlight-group">
-                    <div class="streetlight-front"></div><div class="streetlight-front"></div>
-                    <div class="streetlight-front"></div><div class="streetlight-front"></div>
+                    <div class="streetlight-front"></div>
+                    <div class="streetlight-front"></div>
+                    <div class="streetlight-front"></div>
+                    <div class="streetlight-front"></div>
                 </div>
                 <div class="streetlight-group">
-                    <div class="streetlight-front"></div><div class="streetlight-front"></div>
-                    <div class="streetlight-front"></div><div class="streetlight-front"></div>
+                    <div class="streetlight-front"></div>
+                    <div class="streetlight-front"></div>
+                    <div class="streetlight-front"></div>
+                    <div class="streetlight-front"></div>
                 </div>
             </div>
         </div>
+
         <canvas id="smoke-canvas"></canvas>
+
+        <!-- CAR -->
         <div class="car-wrapper" id="car">
             <div class="headlight-beam"></div>
             <div class="headlight-beam-2"></div>
@@ -178,27 +449,80 @@
             <div class="car-body">
                 <svg viewBox="0 0 320 120" xmlns="http://www.w3.org/2000/svg" class="car-svg">
                     <defs>
-                        <linearGradient id="bodyPaint" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#141d28"/><stop offset="40%" stop-color="#1e2d40"/><stop offset="100%" stop-color="#0a111a"/></linearGradient>
-                        <linearGradient id="glass" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#040408"/><stop offset="100%" stop-color="#0f1520"/></linearGradient>
-                        <radialGradient id="rim" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#8a9aaa"/><stop offset="60%" stop-color="#5a6a7a"/><stop offset="100%" stop-color="#2a3540"/></radialGradient>
-                        <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00e5ff" stop-opacity="0"/><stop offset="30%" stop-color="#00e5ff"/><stop offset="70%" stop-color="#7b2fff"/><stop offset="100%" stop-color="#7b2fff" stop-opacity="0"/></linearGradient>
+                        <linearGradient id="bodyPaint" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#141d28"/>
+                            <stop offset="40%" stop-color="#1e2d40"/>
+                            <stop offset="100%" stop-color="#0a111a"/>
+                        </linearGradient>
+                        <linearGradient id="glass" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#040408"/>
+                            <stop offset="100%" stop-color="#0f1520"/>
+                        </linearGradient>
+                        <radialGradient id="rim" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="#8a9aaa"/>
+                            <stop offset="60%" stop-color="#5a6a7a"/>
+                            <stop offset="100%" stop-color="#2a3540"/>
+                        </radialGradient>
+                        <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#00e5ff" stop-opacity="0"/>
+                            <stop offset="30%" stop-color="#00e5ff"/>
+                            <stop offset="70%" stop-color="#7b2fff"/>
+                            <stop offset="100%" stop-color="#7b2fff" stop-opacity="0"/>
+                        </linearGradient>
                     </defs>
-                    <g class="wheel wheel-back"><circle cx="75" cy="95" r="19" fill="#080808"/><circle cx="75" cy="95" r="13" fill="url(#rim)"/><path d="M75 83 L75 107 M63 95 L87 95 M66.5 86.5 L83.5 103.5 M66.5 103.5 L83.5 86.5" stroke="#111" stroke-width="2.5"/><circle cx="75" cy="95" r="4" fill="#000"/><circle cx="75" cy="95" r="2" fill="#444"/></g>
-                    <g class="wheel wheel-front"><circle cx="245" cy="95" r="19" fill="#080808"/><circle cx="245" cy="95" r="13" fill="url(#rim)"/><path d="M245 83 L245 107 M233 95 L257 95 M236.5 86.5 L253.5 103.5 M236.5 103.5 L253.5 86.5" stroke="#111" stroke-width="2.5"/><circle cx="245" cy="95" r="4" fill="#000"/><circle cx="245" cy="95" r="2" fill="#444"/></g>
+
+                    <!-- Wheels -->
+                    <g class="wheel wheel-back">
+                        <circle cx="75" cy="95" r="19" fill="#080808"/>
+                        <circle cx="75" cy="95" r="13" fill="url(#rim)"/>
+                        <path d="M75 83 L75 107 M63 95 L87 95 M66.5 86.5 L83.5 103.5 M66.5 103.5 L83.5 86.5" stroke="#111" stroke-width="2.5"/>
+                        <circle cx="75" cy="95" r="4" fill="#000"/>
+                        <circle cx="75" cy="95" r="2" fill="#444"/>
+                    </g>
+                    <g class="wheel wheel-front">
+                        <circle cx="245" cy="95" r="19" fill="#080808"/>
+                        <circle cx="245" cy="95" r="13" fill="url(#rim)"/>
+                        <path d="M245 83 L245 107 M233 95 L257 95 M236.5 86.5 L253.5 103.5 M236.5 103.5 L253.5 86.5" stroke="#111" stroke-width="2.5"/>
+                        <circle cx="245" cy="95" r="4" fill="#000"/>
+                        <circle cx="245" cy="95" r="2" fill="#444"/>
+                    </g>
+
+                    <!-- Body -->
                     <path d="M20 85 C20 70,30 60,60 60 L110 38 C140 24,180 24,210 38 L260 60 C290 60,312 70,316 85 L316 95 L280 95 C280 60,210 60,210 95 L110 95 C110 60,40 60,40 95 L20 95 Z" fill="url(#bodyPaint)"/>
-                    <path d="M22 95 L40 95 C40 60,110 60,110 95 L210 95 C210 60,280 60,280 95 L314 95" fill="none" stroke="url(#accent)" stroke-width="2" opacity="0.9"/>
+
+                    <!-- Neon underline accent -->
+                    <path d="M22 95 L40 95 C40 60,110 60,110 95 L210 95 C210 60,280 60,280 95 L314 95" fill="none" stroke="url(#accent)" stroke-width="2" opacity="0.9" filter="url(#glow)"/>
+
+                    <!-- Windshield -->
                     <path d="M72 60 L118 40 C142 28,178 28,202 40 L242 60 Z" fill="url(#glass)"/>
+                    <!-- Divider -->
                     <path d="M157 32 L162 60 L152 60 L148 32 Z" fill="url(#bodyPaint)" opacity="0.8"/>
+
+                    <!-- Taillights -->
                     <path d="M14 72 L24 68 L24 80 Z" fill="#ff2244" filter="drop-shadow(0 0 8px #ff0033)"/>
                     <path d="M14 80 L24 82 L24 92 Z" fill="#ff4400" filter="drop-shadow(0 0 6px #ff4400)" opacity="0.7"/>
+
+                    <!-- Headlight -->
                     <path d="M302 72 L316 75 L306 86 Z" fill="#e0f4ff" filter="drop-shadow(0 0 10px #ffffff)"/>
                 </svg>
             </div>
         </div>
+
+        <!-- OVERLAYS -->
         <div id="smoke-screen"></div>
         <div class="scanline"></div>
-        <div class="hud-corner hud-tl" id="hud-tl"><span class="hud-line">SYS // ONLINE</span><span class="hud-line">VER 2.4.1</span></div>
-        <div class="hud-corner hud-tr" id="hud-tr"><span class="hud-line">TRAFFIC IQ</span><span class="hud-line">NETWORK ACTIVE</span></div>
+
+        <!-- HUD corners -->
+        <div class="hud-corner hud-tl" id="hud-tl">
+            <span class="hud-line">SYS // ONLINE</span>
+            <span class="hud-line">VER 2.4.1</span>
+        </div>
+        <div class="hud-corner hud-tr" id="hud-tr">
+            <span class="hud-line">TRAFFIC IQ</span>
+            <span class="hud-line">NETWORK ACTIVE</span>
+        </div>
+
+        <!-- TITLE -->
         <div class="title-container" id="title">
             <div class="title-eyebrow">INTELLIGENT TRAFFIC SYSTEM</div>
             <div class="title-main">
@@ -208,200 +532,30 @@
             <div class="title-divider" id="title-divider"></div>
             <div class="title-tagline">Navigate. Optimize. Dominate.</div>
         </div>
-        <p id="enter-prompt">press <span>[ENTER]</span> to clear the road</p>
+
+        <!-- ENTER PROMPT -->
+        <p id="enter-prompt">
+            press <span>[ENTER]</span> to clear the road
+        </p>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script>
     document.addEventListener("DOMContentLoaded", () => {
-
-        // ═══════════════════════════════════════════════
-        //  TRAFFIC NOTIFICATION SYSTEM
-        // ═══════════════════════════════════════════════
-
-        const TRAFFIC_ISSUES = [
-            {
-                id: 'railway-station',
-                lat: 16.5449, lng: 81.5212,
-                title: '🚨 Traffic Alert Ahead',
-                body: 'Accident near Bhimavaram Railway Station. Expected delay 30 minutes.',
-                radius: 200
-            },
-            {
-                id: 'bus-stand',
-                lat: 16.5380, lng: 81.5150,
-                title: '🚧 Road Block Ahead',
-                body: 'Road block near Bhimavaram Bus Stand. Expected delay 15 minutes.',
-                radius: 2
-            }
-        ];
-
-        const shownAlerts = new Set();
-        let swReg = null; // ← stores service worker registration
-
-        // ── Distance calculator ──
-        function getDistanceKm(lat1, lon1, lat2, lon2) {
-            const R = 6371;
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dLat/2)**2 +
-                Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
-            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        }
-
-        // ── THE FIX: use swReg.showNotification() not new Notification() ──
-        // swReg.showNotification works even when tab is minimized/background
-        function fireNotification(title, body) {
-            if (swReg && Notification.permission === 'granted') {
-                // ✅ BEST METHOD — Service Worker notification
-                // Works in background, minimized, and when tab not active
-                swReg.showNotification(title, {
-                    body: body,
-                    icon: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png',
-                    badge: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png',
-                    vibrate: [200, 100, 200],
-                    requireInteraction: true,   // stays on screen until dismissed
-                    tag: 'trafficiq-alert'
-                });
-            } else if (Notification.permission === 'granted') {
-                // Fallback if SW not ready yet
-                new Notification(title, { body, icon: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png' });
-            }
-        }
-
-        // ── Register Service Worker ──
-        async function registerSW() {
-            if (!('serviceWorker' in navigator)) return;
-            try {
-                swReg = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
-                console.log('[SW] Registered ✅');
-            } catch(e) {
-                console.warn('[SW] Failed:', e.message);
-            }
-        }
-
-        // ── Get FCM token (for server-sent push later) ──
-        async function getFCMToken() {
-            try {
-                const fcmApp = firebase.apps.length
-                    ? firebase.app()
-                    : firebase.initializeApp({
-                        apiKey: "AIzaSyAKGbbt_ARGWep8ggPuk_iE6R1xALkmJM8",
-                        authDomain: "trafficiq-3ef14.firebaseapp.com",
-                        projectId: "trafficiq-3ef14",
-                        storageBucket: "trafficiq-3ef14.firebasestorage.app",
-                        messagingSenderId: "97313655693",
-                        appId: "1:97313655693:web:fee4304d7815bdceaf0bc4"
-                    });
-                const messaging = firebase.messaging();
-                const token = await messaging.getToken({
-                    serviceWorkerRegistration: swReg,
-                    vapidKey: "BOmLruIptzj7OIqZy6v4YfR54tvk7RYM8k_h7KY5LUias4bRwatlIu0-2dMbsrwrdfZTfJAJyBq9j8puzwk3RbY"
-                });
-                if (token) {
-                    console.log('[FCM] Token:', token);
-                    localStorage.setItem('fcm_token', token);
-                }
-                // Handle foreground FCM messages
-                messaging.onMessage(payload => {
-                    const t = payload.notification?.title || '🚨 Traffic Alert';
-                    const b = payload.notification?.body  || 'Traffic issue near you.';
-                    fireNotification(t, b);
-                });
-            } catch(e) {
-                console.warn('[FCM] Token error:', e.message);
-            }
-        }
-
-        // ── Report box ──
-        function showReportBox(lat, lng) {
-            if (document.getElementById('traffic-report-box')) return;
-            const box = document.createElement('div');
-            box.id = 'traffic-report-box';
-            box.innerHTML = `
-                <p>📍 ARE THERE ANY TRAFFIC ISSUES HERE?</p>
-                <button class="report-btn" style="background:#e53935;color:#fff" onclick="window.reportIssue('Accident',${lat},${lng})">🚗 ACCIDENT</button>
-                <button class="report-btn" style="background:#fb8c00;color:#fff" onclick="window.reportIssue('Road Block',${lat},${lng})">🚧 ROAD BLOCK</button>
-                <button class="report-btn" style="background:#f9a825;color:#000" onclick="window.reportIssue('Heavy Traffic',${lat},${lng})">🚦 HEAVY TRAFFIC</button>
-                <button class="report-btn" style="background:#00c853;color:#000" onclick="window.reportIssue('All Clear',${lat},${lng})">✅ ALL CLEAR</button>
-            `;
-            document.body.appendChild(box);
-            setTimeout(() => box.remove(), 30000);
-        }
-
-        window.reportIssue = function(type, lat, lng) {
-            document.getElementById('traffic-report-box')?.remove();
-            fireNotification('✅ Report Submitted', `"${type}" reported near your location. Thank you!`);
-        };
-
-        // ── Check traffic near user ──
-        function checkTraffic(position) {
-            const uLat = position.coords.latitude;
-            const uLng = position.coords.longitude;
-            let foundIssue = false;
-
-            TRAFFIC_ISSUES.forEach(issue => {
-                const dist = getDistanceKm(uLat, uLng, issue.lat, issue.lng);
-                if (dist <= issue.radius && !shownAlerts.has(issue.id)) {
-                    shownAlerts.add(issue.id);
-                    foundIssue = true;
-                    fireNotification(issue.title, issue.body);
-                }
-            });
-
-            if (!foundIssue) showReportBox(uLat, uLng);
-        }
-
-        function startGeolocation() {
-            if (!navigator.geolocation) return;
-            navigator.geolocation.watchPosition(
-                checkTraffic,
-                err => console.warn('[Geo] error:', err.message),
-                { enableHighAccuracy: true, maximumAge: 15000, timeout: 10000 }
-            );
-        }
-
-        // ── Permission banner ──
-        const banner   = document.getElementById('notif-banner');
-        const allowBtn = document.getElementById('notif-allow');
-        const denyBtn  = document.getElementById('notif-deny');
-
-        allowBtn.addEventListener('click', async () => {
-            banner.classList.remove('show');
-            const perm = await Notification.requestPermission();
-            if (perm === 'granted') {
-                await registerSW();  // ← register SW FIRST
-                await getFCMToken(); // ← then get token
-                startGeolocation();  // ← then start location
-            }
-        });
-
-        denyBtn.addEventListener('click', () => banner.classList.remove('show'));
-
-        // ── Auto-start if already granted ──
-        async function init() {
-            if (Notification.permission === 'granted') {
-                await registerSW();
-                await getFCMToken();
-                startGeolocation();
-            } else if (Notification.permission === 'default') {
-                setTimeout(() => banner.classList.add('show'), 1200);
-            }
-        }
-        init();
-
-        // ═══════════════════════════════════════════════
-        //  SMOKE + GSAP (unchanged)
-        // ═══════════════════════════════════════════════
+        // CANVAS SMOKE ENGINE
         const canvas = document.getElementById('smoke-canvas');
         const ctx = canvas.getContext('2d');
         const car = document.getElementById('car');
 
-        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        let particles = [], isSpeeding = false;
+        let particles = [];
+        let isSpeeding = false;
 
         function getExhaustPos() {
             const rect = car.getBoundingClientRect();
@@ -410,49 +564,79 @@
 
         class Particle {
             constructor(x, y, isHeavy) {
-                this.x=x; this.y=y;
-                this.size   = isHeavy ? Math.random()*45+35 : Math.random()*18+12;
-                this.speedX = isHeavy ? -(Math.random()*9+3) : -(Math.random()*3.5+1);
-                this.speedY = Math.random()*2.5-1.2;
-                const v=Math.floor(Math.random()*30+10);
-                this.color=`${v},${v},${v}`; this.life=0.75;
-                this.decay=isHeavy?0.014:0.022;
+                this.x = x; this.y = y;
+                this.size = isHeavy ? Math.random() * 45 + 35 : Math.random() * 18 + 12;
+                this.speedX = isHeavy ? -(Math.random() * 9 + 3) : -(Math.random() * 3.5 + 1);
+                this.speedY = Math.random() * 2.5 - 1.2;
+                const v = Math.floor(Math.random() * 30 + 10);
+                this.color = `${v},${v},${v}`;
+                this.life = 0.75;
+                this.decay = isHeavy ? 0.014 : 0.022;
             }
-            update(){ this.x+=this.speedX; this.y+=this.speedY; this.size+=0.6; this.life-=this.decay; }
-            draw(){ ctx.fillStyle=`rgba(${this.color},${Math.max(0,this.life)})`; ctx.beginPath(); ctx.arc(this.x,this.y,this.size,0,Math.PI*2); ctx.fill(); }
+            update() { this.x += this.speedX; this.y += this.speedY; this.size += 0.6; this.life -= this.decay; }
+            draw() {
+                ctx.fillStyle = `rgba(${this.color},${Math.max(0, this.life)})`;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+            }
         }
 
         function animateParticles() {
-            ctx.clearRect(0,0,canvas.width,canvas.height);
-            const pos=getExhaustPos();
-            if(pos.x>-50 && pos.x<window.innerWidth+100){
-                if(!isSpeeding && Math.random()>0.45) particles.push(new Particle(pos.x,pos.y,false));
-                else if(isSpeeding) for(let i=0;i<6;i++) particles.push(new Particle(pos.x,pos.y,true));
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const pos = getExhaustPos();
+            if (pos.x > -50 && pos.x < window.innerWidth + 100) {
+                if (!isSpeeding && Math.random() > 0.45) particles.push(new Particle(pos.x, pos.y, false));
+                else if (isSpeeding) for (let i = 0; i < 6; i++) particles.push(new Particle(pos.x, pos.y, true));
             }
-            for(let i=particles.length-1;i>=0;i--){ particles[i].update(); particles[i].draw(); if(particles[i].life<=0) particles.splice(i,1); }
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update(); particles[i].draw();
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
             requestAnimationFrame(animateParticles);
         }
         animateParticles();
 
+        // GSAP TIMELINE
         const tl = gsap.timeline();
-        tl.to(['.hud-tl','.hud-tr'],{opacity:1,duration:1.2,stagger:0.3,ease:'power2.out'},0.3)
-          .to(car,{left:"36%",duration:2.2,ease:"power2.out"},0.5)
-          .to({},{duration:1.2})
-          .add(()=>{ isSpeeding=true; document.getElementById('scene').classList.add('fast-road'); })
-          .to(car,{left:"160%",y:-6,rotation:-2.5,duration:0.75,ease:"power3.in"})
-          .to("#smoke-screen",{opacity:1,duration:0.7,ease:"power2.inOut"},"-=0.15")
-          .to("#title",{opacity:1,scale:1,filter:"blur(0px)",duration:2.8,ease:"power3.out"})
-          .add(()=>{ document.getElementById('title-divider').classList.add('animate'); },"-=2")
-          .to("#enter-prompt",{opacity:1,duration:0.8,ease:"power2.inOut",yoyo:true,repeat:-1,repeatDelay:0.4});
 
-        function goToSignIn() {
-            gsap.to("body",{opacity:0,duration:0.5,onComplete:()=>{ window.location.href="signin.html"; }});
-        }
-        document.addEventListener('keydown', e => { if(e.key==='Enter') goToSignIn(); });
-        document.body.addEventListener('click', e => {
-            if(!e.target.closest('#notif-banner') && !e.target.closest('#traffic-report-box')) goToSignIn();
+        // HUD fades in
+        tl.to(['.hud-tl', '.hud-tr'], { opacity: 1, duration: 1.2, stagger: 0.3, ease: 'power2.out' }, 0.3)
+        // Car drives in
+        .to(car, { left: "36%", duration: 2.2, ease: "power2.out" }, 0.5)
+        .to({}, { duration: 1.2 })
+        // Speed burst
+        .add(() => {
+            isSpeeding = true;
+            document.getElementById('scene').classList.add('fast-road');
+        })
+        .to(car, { left: "160%", y: -6, rotation: -2.5, duration: 0.75, ease: "power3.in" })
+        // Smoke screen
+        .to("#smoke-screen", { opacity: 1, duration: 0.7, ease: "power2.inOut" }, "-=0.15")
+        // Title reveal
+        .to("#title", { opacity: 1, scale: 1, filter: "blur(0px)", duration: 2.8, ease: "power3.out" })
+        // Divider line
+        .add(() => {
+            document.getElementById('title-divider').classList.add('animate');
+        }, "-=2")
+        // Enter prompt pulse
+        .to("#enter-prompt", {
+            opacity: 1, duration: 0.8, ease: "power2.inOut",
+            yoyo: true, repeat: -1, repeatDelay: 0.4
         });
+
+        // Redirect logic
+        function goToSignIn() {
+            gsap.to("body", {
+                opacity: 0, duration: 0.5,
+                onComplete: () => { window.location.href = "signin.html"; }
+            });
+        }
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Enter') goToSignIn();
+        });
+        document.body.addEventListener('click', goToSignIn);
     });
     </script>
+    <script type="module" src="firebase-config.js"></script>
 </body>
 </html>
