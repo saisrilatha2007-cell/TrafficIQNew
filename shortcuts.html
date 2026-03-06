@@ -11,8 +11,16 @@
 </head>
 <body>
 <canvas id="bg"></canvas>
+
 <header id="topbar">
   <div class="tb-l">
+    <button id="mobMenuBtn" class="icon-btn mob-menu-btn" title="Shortcuts Panel" aria-label="Open Shortcuts Panel">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
     <a href="dashboard.html" class="back-btn">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M5 12l7-7M5 12l7 7"/></svg>Back
     </a>
@@ -36,10 +44,52 @@
     <button id="themeBtn" class="icon-btn">🌙</button>
   </div>
 </header>
+
 <div class="layout">
+
+  <!-- ══ LEFT PANEL 40% — Shortcuts + Confidence ══ -->
   <aside id="panel">
+
+    <button id="panelCloseBtn" class="panel-close-btn" aria-label="Close panel">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
     <div class="panel-inner">
-      <p class="panel-title">⚡ HIGHLIGHTED SHORTCUTS</p>
+
+      <!-- Stats Block (desktop) -->
+      <div class="stats-block">
+        <p class="section-label" style="font-size:.58rem;font-weight:700;letter-spacing:.14em;color:var(--sub);text-transform:uppercase;margin-bottom:7px">LIVE STATS</p>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-val" id="panOnlineD">—</span>
+            <span class="stat-lbl">Online</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-val" id="panConfD">—</span>
+            <span class="stat-lbl">Confidence</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile-only stats strip -->
+      <div class="panel-mob-stats">
+        <div class="ps-item">
+          <span class="ps-val" id="panOnlineM">—</span>
+          <span class="ps-lbl">Online</span>
+        </div>
+        <div class="ps-div"></div>
+        <div class="ps-item">
+          <span class="ps-val" id="panConfM">—</span>
+          <span class="ps-lbl">Confidence</span>
+        </div>
+      </div>
+
+      <!-- Highlighted Shortcuts section -->
+      <div class="shortcuts-block">
+        <p class="panel-title">⚡ HIGHLIGHTED SHORTCUTS</p>
+      </div>
+
+      <!-- Confidence Ring -->
       <div class="conf-block" id="confBlock">
         <p class="conf-label">ROUTE CONFIDENCE</p>
         <div class="conf-ring-wrap">
@@ -61,17 +111,24 @@
         </div>
         <p class="conf-status" id="confStatus">Select a shortcut</p>
       </div>
+
     </div>
   </aside>
+
+  <!-- ══ RIGHT PANEL 60% — Live Chat ══ -->
   <main class="stream">
+
+    <!-- scroll-btn is position:fixed z-index:300 — always visible, never hidden -->
     <button id="scrollBtn" class="scroll-btn" onclick="scrollToBottom()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
       New messages ↓
     </button>
+
     <div class="feed-hdr">
       <span class="feed-hdr-title">COMMUNITY DISCUSSION</span>
       <span class="feed-hdr-sub" id="feedSub">Select a shortcut to load its live feed</span>
     </div>
+
     <div class="feed" id="feed">
       <div class="empty-state" id="emptyState">
         <div class="empty-ico">⚡</div>
@@ -79,8 +136,16 @@
         <p class="empty-sub">Select one of the highlighted shortcuts on the left to load the live community discussion for that route.</p>
       </div>
     </div>
+
+    <!-- DOCK -->
     <div class="dock">
-      <div class="triggers"></div>
+      <div class="triggers">
+        <button id="mobShortcutsBtn" aria-label="View shortcuts">
+          <span class="msb-ico">⚡</span>
+          <span>Shortcuts</span>
+          <span class="msb-badge" id="msbBadge"></span>
+        </button>
+      </div>
       <div class="input-row">
         <div class="chat-wrap">
           <input id="chatInp" type="text" placeholder="Share your shortcut experience…" autocomplete="off"/>
@@ -100,7 +165,9 @@
     </div>
   </main>
 </div>
-<div id="mobOverlay" onclick="togglePanel()"></div>
+
+<!-- Overlay tap-catcher — NO backdrop-filter, just a dimmer -->
+<div id="mobOverlay"></div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -145,11 +212,92 @@
   onValue(countRef, snap => {
     const count = snap.exists() ? Object.keys(snap.val()).length : 0;
     document.getElementById('onlineCount').textContent = count;
+    const panOnlineD = document.getElementById('panOnlineD');
+    const panOnlineM = document.getElementById('panOnlineM');
+    if (panOnlineD) panOnlineD.textContent = count;
+    if (panOnlineM) panOnlineM.textContent = count;
   });
 
   const s = document.createElement('script');
   s.src = 'shortcuts.js';
   document.body.appendChild(s);
+</script>
+
+<script>
+  /* ══════════════════════════════════════════════
+     MOBILE PANEL TOGGLE
+     — Simply toggles .open on panel and .show on overlay.
+     — scroll-btn is z-index:300 (fixed), so it stays
+       accessible regardless of panel state. Never touch it.
+  ══════════════════════════════════════════════ */
+  function togglePanel() {
+    const panel   = document.getElementById('panel');
+    const overlay = document.getElementById('mobOverlay');
+    panel.classList.toggle('open');
+    overlay.classList.toggle('show');
+  }
+
+  window.togglePanel = togglePanel;
+
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('mobMenuBtn')    ?.addEventListener('click', togglePanel);
+    document.getElementById('panelCloseBtn') ?.addEventListener('click', togglePanel);
+    document.getElementById('mobShortcutsBtn')?.addEventListener('click', togglePanel);
+    document.getElementById('panTog')        ?.addEventListener('click', togglePanel);
+    document.getElementById('mobOverlay')    ?.addEventListener('click', togglePanel);
+  });
+
+  /* ══ GSAP MOBILE FIX ══
+     GSAP's entrance tween sets inline transform/opacity which defeats the
+     CSS drawer. Clear them after the animation completes (~1 s).
+  */
+  window.addEventListener('load', () => {
+    if (window.innerWidth > 860) return;
+    const panel = document.getElementById('panel');
+    const clear = () => {
+      panel.style.removeProperty('transform');
+      panel.style.removeProperty('opacity');
+      panel.style.setProperty('transform', 'translateX(-100%)', 'important');
+      panel.style.setProperty('opacity',   '1',                 'important');
+    };
+    clear();
+    setTimeout(clear, 1100);
+  });
+
+  /* ══ SYNC CONFIDENCE to stats strips ══ */
+  window.addEventListener('load', () => {
+    const tbConf = document.getElementById('tbConf');
+    if (tbConf) {
+      const syncConf = () => {
+        const v = tbConf.textContent;
+        const panConfD = document.getElementById('panConfD');
+        const panConfM = document.getElementById('panConfM');
+        if (panConfD) panConfD.textContent = v;
+        if (panConfM) panConfM.textContent = v;
+      };
+      new MutationObserver(syncConf).observe(tbConf, { childList:true, subtree:true, characterData:true });
+      syncConf();
+    }
+
+    /* Update shortcuts badge count when cards appear */
+    const shortcutsBlock = document.querySelector('.shortcuts-block');
+    if (shortcutsBlock) {
+      new MutationObserver(() => {
+        const count = shortcutsBlock.querySelectorAll('.sc-card').length;
+        const badge = document.getElementById('msbBadge');
+        const btn   = document.getElementById('mobShortcutsBtn');
+        if (!badge || !btn) return;
+        if (count > 0) {
+          badge.textContent = count;
+          badge.classList.add('show');
+          btn.classList.add('has-shortcuts');
+        } else {
+          badge.classList.remove('show');
+          btn.classList.remove('has-shortcuts');
+        }
+      }).observe(shortcutsBlock, { childList:true, subtree:true });
+    }
+  });
 </script>
 </body>
 </html>

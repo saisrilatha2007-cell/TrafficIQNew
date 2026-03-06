@@ -13,8 +13,17 @@
 
 <canvas id="bg"></canvas>
 
+<!-- TOP BAR -->
 <header id="topbar">
   <div class="tb-l">
+    <!-- Mobile menu button — only visible on mobile -->
+    <button id="mobMenuBtn" class="icon-btn mob-menu-btn" title="Issues Panel" aria-label="Open Issues Panel">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
     <a href="dashboard.html" class="back-btn">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M5 12l7-7M5 12l7 7"/></svg>Back
     </a>
@@ -26,7 +35,7 @@
   <div class="tb-r">
     <div class="tb-stat"><strong id="tbRep">0</strong><span>reporters</span></div>
     <div class="tb-stat"><strong id="tbOnline">0</strong><span>online</span></div>
-    <button id="panTog" class="icon-btn" title="Panel">
+    <button id="panTog" class="icon-btn" title="Toggle Panel">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
     </button>
     <button id="themeBtn" class="icon-btn">🌙</button>
@@ -35,53 +44,108 @@
 
 <div class="layout">
 
-  <!-- LEFT PANEL — Major Issues -->
+  <!-- ══ LEFT PANEL 40% — Issue Intelligence ══ -->
   <aside id="panel">
+
+    <!-- Close button inside panel — mobile only -->
+    <button id="panelCloseBtn" class="panel-close-btn" aria-label="Close panel">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
     <div class="panel-inner">
-      <p class="panel-title">⚠ MAJOR ISSUES</p>
-      <!-- Issue cards will be dynamically loaded from Firebase -->
+
+      <!-- Reporters + Online stats card — desktop -->
+      <div class="stats-block">
+        <p class="section-label">LIVE STATS</p>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-val" id="panRepD">0</span>
+            <span class="stat-lbl">Reporters</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-val" id="panOnlineD">0</span>
+            <span class="stat-lbl">Online</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reporters + Online stats strip — mobile only -->
+      <div class="panel-mob-stats">
+        <div class="ps-item">
+          <span class="ps-val" id="panRep">0</span>
+          <span class="ps-lbl">Reporters</span>
+        </div>
+        <div class="ps-div"></div>
+        <div class="ps-item">
+          <span class="ps-val" id="panOnline">0</span>
+          <span class="ps-lbl">Online</span>
+        </div>
+      </div>
+
+      <!-- Major Issues section -->
+      <div class="issues-block">
+        <p class="panel-title">⚠ MAJOR ISSUES</p>
+        <!-- Issue cards rendered dynamically by JS -->
+      </div>
+
     </div>
   </aside>
 
-  <!-- RIGHT STREAM -->
+  <!-- ══ RIGHT PANEL 60% — Live Chat ══ -->
   <main class="stream">
-    <button id="scrollBtn" class="scroll-btn" onclick="scrollToBottom()">
+
+    <button id="scrollBtn" class="scroll-btn">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
       New messages ↓
     </button>
 
+    <!-- Feed header — identical to reference -->
+    <div class="feed-hdr">
+      <span class="feed-hdr-title">LIVE COMMUNITY CHAT</span>
+      <span class="feed-hdr-sub" id="feedSub">Real-time reports</span>
+    </div>
+
     <div class="feed" id="feed"></div>
 
-    <!-- DOCK always at bottom -->
+    <!-- DOCK -->
     <div class="dock">
       <div class="triggers">
-        <button class="trig" data-msg="🚗 Accident confirmed — avoid this route now." onclick="trigFill(this)">🚗 Accident</button>
-        <button class="trig" data-msg="✅ Traffic clearing, open in ~15 mins." onclick="trigFill(this)">✅ Clearing</button>
-        <button class="trig" data-msg="🔴 Heavy traffic — 30+ min delay." onclick="trigFill(this)">🔴 Heavy Traffic</button>
-        <button class="trig" data-msg="⚠️ Avoid flyover — completely jammed." onclick="trigFill(this)">⚠️ Flyover</button>
-        <button class="trig" data-msg="🚛 Truck breakdown, single lane moving." onclick="trigFill(this)">🚛 Breakdown</button>
+        <!-- Issues button: first in triggers row, mobile only -->
+        <button id="mobIssuesBtn" aria-label="View major issues">
+          <span class="mib-ico">⚠️</span>
+          <span>Issues</span>
+          <span class="mib-badge" id="mibBadge"></span>
+        </button>
+        <!-- Trigger pills -->
+        <button class="trig" data-msg="🚗 Accident confirmed — avoid this route now.">🚗 Accident</button>
+        <button class="trig" data-msg="✅ Traffic clearing, open in ~15 mins.">✅ Clearing</button>
+        <button class="trig" data-msg="🔴 Heavy traffic — 30+ min delay.">🔴 Heavy Traffic</button>
+        <button class="trig" data-msg="⚠️ Avoid flyover — completely jammed.">⚠️ Flyover</button>
+        <button class="trig" data-msg="🚛 Truck breakdown, single lane moving.">🚛 Breakdown</button>
       </div>
       <div class="input-row">
         <div class="chat-wrap">
           <input id="chatInp" type="text" placeholder="Share what you see on the road…" autocomplete="off"/>
-          <button class="send-btn" onclick="sendMsg()">
+          <button class="send-btn">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           </button>
         </div>
+        <!-- Quick Nav — identical to reference -->
         <div class="qnav">
-          <a href="shortcuts.html"    class="qi" data-tip="Shortcuts"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></a>
-          <a href="time-taken.html"   class="qi" data-tip="Time Taken"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></a>
+          <a href="shortcuts.html"      class="qi" data-tip="Shortcuts"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></a>
+          <a href="time-taken.html"     class="qi" data-tip="Time Taken"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></a>
           <a href="enter-traffics.html" class="qi" data-tip="Enter Traffic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></a>
-          <a href="info-passer.html"  class="qi" data-tip="Info Passer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></a>
-          <a href="entertainment.html" class="qi" data-tip="Entertainment"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></a>
-          <a href="trusted-users.html" class="qi" data-tip="Trusted Users"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></a>
+          <a href="info-passer.html"    class="qi" data-tip="Info Passer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></a>
+          <a href="entertainment.html"  class="qi" data-tip="Entertainment"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></a>
+          <a href="trusted-users.html"  class="qi qi-active" data-tip="Trusted Users"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></a>
         </div>
       </div>
     </div>
   </main>
 </div>
 
-<div id="mobOverlay" onclick="togglePanel()"></div>
+<!-- Transparent overlay tap-catcher -->
+<div id="mobOverlay"></div>
 
 <!-- Firebase compat SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>

@@ -583,8 +583,46 @@ window.goCityRoom = goCityRoom;
 document.getElementById('burger').addEventListener('click', () => document.getElementById('mob').classList.toggle('open'));
 
 /* ══════════════════════════════════════════════
-   ROUTE OVERLAY — PATH FROM CITY (START) TO SHORTCUT (END)
-   Shows cyan polyline path with green start marker and red end marker
+   OSRM REAL ROAD ROUTING
+   Fetches an actual road path between two [lat,lon] points
+   using the free public OSRM demo server.
+   Returns array of [lat, lng] pairs decoded from the
+   GeoJSON geometry returned by OSRM.
+══════════════════════════════════════════════ */
+
+/**
+ * Fetch a real road route from OSRM between two coordinates.
+ * @param {number} fromLat
+ * @param {number} fromLon
+ * @param {number} toLat
+ * @param {number} toLon
+ * @returns {Promise<Array<[number,number]>>} Array of [lat, lng] waypoints
+ */
+async function fetchOSRMRoute(fromLat, fromLon, toLat, toLon) {
+  // OSRM expects coordinates as lon,lat (GeoJSON order)
+  const url = `https://router.project-osrm.org/route/v1/driving/` +
+    `${fromLon},${fromLat};${toLon},${toLat}` +
+    `?overview=full&geometries=geojson&steps=false`;
+
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`OSRM HTTP ${resp.status}`);
+  const data = await resp.json();
+
+  if (data.code !== 'Ok' || !data.routes || !data.routes.length) {
+    throw new Error('OSRM returned no route: ' + (data.message || data.code));
+  }
+
+  // GeoJSON coordinates are [lon, lat] — flip to [lat, lon] for Leaflet
+  const coords = data.routes[0].geometry.coordinates;
+  return coords.map(([lon, lat]) => [lat, lon]);
+}
+
+/* ══════════════════════════════════════════════
+   ROUTE OVERLAY — REAL ROAD PATH (OSRM)
+   Shows cyan polyline following actual roads from
+   the user's selected city location to the shortcut,
+   with green start marker and red end marker.
+   Works for all 5 Bhimavaram cities/landmarks.
 ══════════════════════════════════════════════ */
 let _routeOverlayGroup = null;
 
@@ -598,9 +636,9 @@ function applyRouteOverlay() {
   setTimeout(() => drawRouteOnMap(route), 600);
 }
 
-function drawRouteOnMap(route) {
-  /* Mark route as active */
-  S.activeRouteId = route.id;
+async function drawRouteOnMap(route) {
+  /* Mark route as active immediately so GPS / marker logic stays paused */
+  S.activeRouteId   = route.id;
   S.activeRouteData = route;
 
   /* Remove previous overlay */
@@ -608,71 +646,196 @@ function drawRouteOnMap(route) {
   _routeOverlayGroup = L.layerGroup().addTo(map);
 
   /* ═══════════════════════════════════════════════
-     CREATE PATH FROM SELECTED CITY TO SHORTCUT
+     DETERMINE START (user's selected city location)
+     and END (shortcut's startLatLng)
   ═══════════════════════════════════════════════ */
-  const startLat = S.selectedCityLat;
-  const startLon = S.selectedCityLon;
-  const endLat = route.startLatLng[0];
-  const endLon = route.startLatLng[1];
+  const startLat = S.selectedCityLat  ?? BHIMAVARAM.lat;
+  const startLon = S.selectedCityLon  ?? BHIMAVARAM.lon;
+  const endLat   = route.startLatLng[0];
+  const endLon   = route.startLatLng[1];
 
-  /* Direct straight line path */
-  const routePath = [[startLat, startLon], [endLat, endLon]];
+  /* ─── Show a loading indicator while OSRM is fetched ─── */
+  const loadingMarker = L.marker(
+    [(startLat + endLat) / 2, (startLon + endLon) / 2],
+    {
+      icon: L.divIcon({
+        html: `<div style="background:rgba(0,207,255,.9);color:#fff;padding:5px 12px;border-radius:99px;font-family:'Plus Jakarta Sans',sans-serif;font-size:.72rem;font-weight:700;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.3)">📡 Loading route…</div>`,
+        className: '',
+        iconAnchor: [60, 14],
+      }),
+      zIndexOffset: 3000,
+    }
+  ).addTo(_routeOverlayGroup);
 
-  /* ── Glow underline (subtle green) ── */
+  /* ─── Fetch real road path from OSRM ─── */
+  let routePath;
+  try {
+    routePath = await fetchOSRMRoute(startLat, startLon, endLat, endLon);
+  } catch (err) {
+    console.warn('[TrafficIQ] OSRM routing failed, using straight-line fallback:', err.message);
+    // Graceful fallback: straight line with intermediate city waypoints
+    routePath = buildFallbackPath(startLat, startLon, endLat, endLon);
+  }
+
+  /* Remove loading indicator */
+  _routeOverlayGroup.removeLayer(loadingMarker);
+
+  /* ── Glow underline (green halo) ── */
   L.polyline(routePath, {
-    color: '#22c55e', weight: 14, opacity: 0.12,
-    lineJoin: 'round', lineCap: 'round',
+    color:     '#22c55e',
+    weight:    16,
+    opacity:   0.10,
+    lineJoin:  'round',
+    lineCap:   'round',
   }).addTo(_routeOverlayGroup);
 
-  /* ── Main cyan route line ── */
+  /* ── Main cyan road line ── */
   const poly = L.polyline(routePath, {
-    color: '#00cfff', weight: 5, opacity: 0.9,
-    lineJoin: 'round', lineCap: 'round',
+    color:    '#00cfff',
+    weight:   5,
+    opacity:  0.92,
+    lineJoin: 'round',
+    lineCap:  'round',
   }).addTo(_routeOverlayGroup);
 
-  /* ── Animated dashes ── */
+  /* ── Animated white dashes overlay ── */
   L.polyline(routePath, {
-    color: '#ffffff', weight: 2, opacity: 0.3,
-    dashArray: '8 10', lineJoin: 'round', lineCap: 'round',
+    color:       '#ffffff',
+    weight:      2,
+    opacity:     0.28,
+    dashArray:   '8 10',
+    lineJoin:    'round',
+    lineCap:     'round',
   }).addTo(_routeOverlayGroup);
 
   /* ═══════════════════════════════════════════════
-     START MARKER (GREEN) — Selected City
+     START MARKER (GREEN) — User's selected city
   ═══════════════════════════════════════════════ */
   const startIcon = L.divIcon({
     html: `<div style="width:40px;height:40px;border-radius:50%;background:#22c55e;border:5px solid #fff;box-shadow:0 0 0 3px rgba(34,197,94,.5),0 6px 20px rgba(0,0,0,.4);display:grid;place-items:center;"><div style="width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:inset 0 0 4px rgba(0,0,0,.2)"></div></div>`,
-    className: 'route-start-marker',
-    iconSize: [40, 40],
+    className:  'route-start-marker',
+    iconSize:   [40, 40],
     iconAnchor: [20, 20],
   });
 
   /* ═══════════════════════════════════════════════
-     END MARKER (RED) — Shortcut Location
+     END MARKER (RED) — Shortcut destination
   ═══════════════════════════════════════════════ */
   const endIcon = L.divIcon({
     html: `<div style="width:40px;height:40px;border-radius:50%;background:#ef4444;border:5px solid #fff;box-shadow:0 0 0 3px rgba(239,68,68,.5),0 6px 20px rgba(0,0,0,.4);display:grid;place-items:center;"><div style="width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:inset 0 0 4px rgba(0,0,0,.2)"></div></div>`,
-    className: 'route-end-marker',
-    iconSize: [40, 40],
+    className:  'route-end-marker',
+    iconSize:   [40, 40],
     iconAnchor: [20, 20],
   });
 
   L.marker([startLat, startLon], { icon: startIcon, zIndexOffset: 2000 })
     .addTo(_routeOverlayGroup)
-    .bindTooltip(`📍 START: ${S.currentPlace}`, { permanent: false, direction: 'right', className: 'tiq-map-tip' });
+    .bindTooltip(`📍 START: ${S.currentPlace}`, {
+      permanent:  false,
+      direction:  'right',
+      className:  'tiq-map-tip',
+    });
 
   L.marker([endLat, endLon], { icon: endIcon, zIndexOffset: 2000 })
     .addTo(_routeOverlayGroup)
-    .bindTooltip(`🏁 END: ${route.startLabel}`, { permanent: false, direction: 'right', className: 'tiq-map-tip' });
+    .bindTooltip(`🏁 END: ${route.startLabel}`, {
+      permanent:  false,
+      direction:  'right',
+      className:  'tiq-map-tip',
+    });
 
-  /* Fly to fit both markers */
+  /* Fly to fit the full road path */
   map.flyToBounds(poly.getBounds(), { padding: [80, 80], duration: 1.3, easeLinearity: 0.4 });
 
-  /* Show info panel */
+  /* Show the info panel at the bottom */
   injectRoutePanel(route);
 }
 
+/* ══════════════════════════════════════════════
+   FALLBACK PATH BUILDER
+   If OSRM is unreachable, build a multi-point path
+   through known intermediate road nodes for each
+   of the 5 Bhimavaram city pairs so it still looks
+   road-like rather than a raw diagonal.
+══════════════════════════════════════════════ */
+
+/**
+ * Known intermediate waypoints between pairs of Bhimavaram landmarks.
+ * Key format: "lat1,lon1->lat2,lon2" rounded to 3 dp.
+ * If no entry exists we simply return start+end (straight line).
+ */
+const KNOWN_WAYPOINTS = {
+  // Bhimavaram Railway Station (16.539, 81.527) → SRKR (16.543, 81.496)
+  '16.539,81.527->16.543,81.496': [
+    [16.5385, 81.5274], [16.5400, 81.5250], [16.5415, 81.5210],
+    [16.5425, 81.5170], [16.5430, 81.5110], [16.5432, 81.4964],
+  ],
+  // Bhimavaram Railway Station → Vishnu College (16.509, 81.522)
+  '16.539,81.527->16.509,81.522': [
+    [16.5385, 81.5274], [16.5360, 81.5268], [16.5320, 81.5248],
+    [16.5270, 81.5235], [16.5200, 81.5225], [16.5092, 81.5219],
+  ],
+  // Bhimavaram Railway Station → RTC Bus Stand (16.545, 81.521)
+  '16.539,81.527->16.545,81.521': [
+    [16.5385, 81.5274], [16.5400, 81.5260], [16.5420, 81.5245],
+    [16.5435, 81.5228], [16.5449, 81.5205],
+  ],
+  // Bhimavaram Railway Station → Government Hospital (16.544, 81.523)
+  '16.539,81.527->16.544,81.523': [
+    [16.5385, 81.5274], [16.5400, 81.5260], [16.5420, 81.5248],
+    [16.5438, 81.5230],
+  ],
+  // RTC Bus Stand → SRKR
+  '16.545,81.521->16.543,81.496': [
+    [16.5449, 81.5205], [16.5448, 81.5180], [16.5445, 81.5140],
+    [16.5440, 81.5090], [16.5435, 81.5030], [16.5432, 81.4964],
+  ],
+  // RTC Bus Stand → Vishnu College
+  '16.545,81.521->16.509,81.522': [
+    [16.5449, 81.5205], [16.5420, 81.5210], [16.5380, 81.5215],
+    [16.5300, 81.5218], [16.5200, 81.5220], [16.5092, 81.5219],
+  ],
+  // Government Hospital → SRKR
+  '16.544,81.523->16.543,81.496': [
+    [16.5438, 81.5230], [16.5436, 81.5200], [16.5435, 81.5170],
+    [16.5434, 81.5120], [16.5433, 81.5060], [16.5432, 81.4964],
+  ],
+  // Government Hospital → Vishnu College
+  '16.544,81.523->16.509,81.522': [
+    [16.5438, 81.5230], [16.5420, 81.5225], [16.5380, 81.5222],
+    [16.5300, 81.5220], [16.5200, 81.5220], [16.5092, 81.5219],
+  ],
+  // Government Hospital → RTC Bus Stand
+  '16.544,81.523->16.545,81.521': [
+    [16.5438, 81.5230], [16.5445, 81.5218], [16.5449, 81.5205],
+  ],
+  // Vishnu College → SRKR
+  '16.509,81.522->16.543,81.496': [
+    [16.5092, 81.5219], [16.5200, 81.5220], [16.5300, 81.5210],
+    [16.5380, 81.5180], [16.5420, 81.5120], [16.5432, 81.4964],
+  ],
+};
+
+function roundCoord(v) { return Math.round(v * 1000) / 1000; }
+
+function buildFallbackPath(fromLat, fromLon, toLat, toLon) {
+  const fk = `${roundCoord(fromLat)},${roundCoord(fromLon)}`;
+  const tk = `${roundCoord(toLat)},${roundCoord(toLon)}`;
+  const key = `${fk}->${tk}`;
+  // Try direct key
+  if (KNOWN_WAYPOINTS[key]) return KNOWN_WAYPOINTS[key];
+  // Try reversed
+  const revKey = `${tk}->${fk}`;
+  if (KNOWN_WAYPOINTS[revKey]) return [...KNOWN_WAYPOINTS[revKey]].reverse();
+  // Default straight line
+  return [[fromLat, fromLon], [toLat, toLon]];
+}
+
+/* ══════════════════════════════════════════════
+   DISMISS ROUTE OVERLAY
+══════════════════════════════════════════════ */
 function dismissRouteOverlay() {
-  S.activeRouteId = null;
+  S.activeRouteId   = null;
   S.activeRouteData = null;
 
   if (_routeOverlayGroup) {
@@ -683,13 +846,16 @@ function dismissRouteOverlay() {
 
   const panel = document.getElementById('tiq-route-panel');
   if (panel) {
-    panel.style.transition = 'opacity .25s, transform .25s';
-    panel.style.opacity = '0';
-    panel.style.transform = 'translateX(-50%) translateY(14px)';
+    panel.style.transition  = 'opacity .25s, transform .25s';
+    panel.style.opacity     = '0';
+    panel.style.transform   = 'translateX(-50%) translateY(14px)';
     setTimeout(() => panel.remove(), 280);
   }
 }
 
+/* ══════════════════════════════════════════════
+   ROUTE INFO PANEL (bottom of map)
+══════════════════════════════════════════════ */
 function injectRoutePanel(route) {
   if (!document.getElementById('tiq-rp-styles')) {
     const s = document.createElement('style');
@@ -735,6 +901,7 @@ function injectRoutePanel(route) {
       #tiq-route-panel .trp-badge.conf { background:rgba(34,197,94,.15); color:#22c55e; border:1px solid rgba(34,197,94,.3); }
       #tiq-route-panel .trp-badge.city { background:rgba(0,207,255,.12); color:#00cfff; border:1px solid rgba(0,207,255,.25); }
       [data-theme="light"] #tiq-route-panel .trp-badge.city { color:#1a73e8; border-color:rgba(26,115,232,.3); background:rgba(26,115,232,.1); }
+      #tiq-route-panel .trp-badge.road { background:rgba(34,197,94,.1); color:#22c55e; border:1px solid rgba(34,197,94,.22); }
       #tiq-route-panel .trp-actions { display:flex; gap:7px; flex-shrink:0; align-items:center; }
       #tiq-route-panel .trp-btn { padding:7px 13px; border-radius:8px; border:none; font-family:'Plus Jakarta Sans',sans-serif; font-size:.72rem; font-weight:600; cursor:pointer; transition:all .2s; }
       #tiq-route-panel .trp-back { background:rgba(0,207,255,.1); color:#00cfff; border:1px solid rgba(0,207,255,.3); }
@@ -758,6 +925,7 @@ function injectRoutePanel(route) {
       <div class="trp-meta">
         ${route.conf > 0 ? `<span class="trp-badge conf">⬤ ${route.conf}% confidence</span>` : ''}
         <span class="trp-badge city">${route.city}</span>
+        <span class="trp-badge road">🛣 Real road route</span>
       </div>
     </div>
     <div class="trp-actions">

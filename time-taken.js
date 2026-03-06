@@ -314,17 +314,7 @@ function redrawGraph() {
 }
 
 
-/* ══ LIKE A MESSAGE ══
-   Dual-collection write — identical pattern to enter-traffic.js and shortcuts.js:
-   ─────────────────────────────────────────────────────────
-   messageLikeCounts/{msgId}
-     likeCount: N              ← per-message count → drives the like button UI
-
-   message_likes/{authorName}
-     authorName, likeCount     ← leaderboard total across ALL pages
-     likers/{safeKey}          ← idempotency guard, prevents double-liking
-   ─────────────────────────────────────────────────────────
-══ */
+/* ══ LIKE A MESSAGE ══ */
 function likeMessage(msgId, authorName, btnEl) {
   if (!window._db) return;
 
@@ -352,7 +342,6 @@ function likeMessage(msgId, authorName, btnEl) {
     const authorDocRef = fs.doc(window._db, 'message_likes', authorName);
     const likerDocRef = fs.doc(window._db, 'message_likes', authorName, 'likers', safeKey);
 
-    // Step 1: Record liker (idempotency guard)
     fs.setDoc(likerDocRef, {
       likedAt: fs.serverTimestamp(),
       liker: S.name,
@@ -360,13 +349,10 @@ function likeMessage(msgId, authorName, btnEl) {
       page: 'time-taken',
     })
       .then(() => Promise.all([
-        // Step 2a: Per-message count → shown on like button
         fs.setDoc(msgLikeCountRef, {
           likeCount: fs.increment(1),
           lastUpdated: fs.serverTimestamp(),
         }, { merge: true }),
-
-        // Step 2b: Author leaderboard total → shown on leaderboard
         fs.setDoc(authorDocRef, {
           authorName: authorName,
           likeCount: fs.increment(1),
@@ -388,11 +374,7 @@ function likeMessage(msgId, authorName, btnEl) {
 }
 
 
-/* ══ SUBSCRIBE TO LIVE LIKE COUNT ══
-   Watches messageLikeCounts/{msgId} — NOT message_likes/{authorName}.
-   Each button shows only that specific message's like count,
-   completely isolated from other pages and other messages.
-══ */
+/* ══ SUBSCRIBE TO LIVE LIKE COUNT ══ */
 function subscribeLikes(msgId, btnEl) {
   import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js').then(fs => {
     if (!likeListeners[msgId]) {
@@ -405,7 +387,6 @@ function subscribeLikes(msgId, btnEl) {
               const c = b.querySelector('.like-count');
               if (!c) return;
               if (b.classList.contains('liked')) {
-                // Optimistic-liked: only update upward to avoid flicker
                 if (count > parseInt(c.textContent || '0')) c.textContent = count;
               } else {
                 c.textContent = count;
@@ -485,13 +466,11 @@ function addMsg({ id = null, name, role, init, vote = null, msg, own = false, ts
       </div>` : ''}
     </div>`;
 
-  /* Like handler — pass id (msgId), NOT name (authorName) */
   if (!isTemp) {
     const btn = el.querySelector('.like-btn');
     if (btn && !isOwnMsg && !alreadyLiked) {
       btn.addEventListener('click', () => likeMessage(id, name, btn));
     }
-    // Subscribe by msgId so each button shows its own isolated count
     if (btn) subscribeLikes(id, btn);
   }
 
@@ -542,15 +521,12 @@ function attachCityListeners(db, cityName) {
     serverTimestamp, increment
   } = window._firestoreApi;
 
-  // Detach previous listeners
   if (S._unsubMsgs) S._unsubMsgs();
   if (S._unsubVotes) S._unsubVotes();
 
-  // Unsubscribe all per-message like listeners
   Object.values(likeListeners).forEach(obj => obj.unsub && obj.unsub());
   for (const k in likeListeners) delete likeListeners[k];
 
-  // Reset for new city
   feed.innerHTML = '';
   S.seenMsgIds = new Set();
   S.votes = { long: 0, med: 0, short: 0 };
@@ -558,7 +534,6 @@ function attachCityListeners(db, cityName) {
   S.prevWinner = null;
   updatePoll();
 
-  /* ── timeTakenMessages ── */
   const msgsQ = query(
     collection(db, 'timeTakenMessages'),
     where('city', '==', cityName),
@@ -605,7 +580,6 @@ function attachCityListeners(db, cityName) {
     }
   );
 
-  /* ── timeTakenVotes ── */
   const votesRef = doc(db, 'timeTakenVotes', cityName);
 
   S._unsubVotes = onSnapshot(votesRef,
@@ -621,7 +595,6 @@ function attachCityListeners(db, cityName) {
     (err) => console.error('Votes listener error:', err)
   );
 
-  /* ── Save to Firestore ── */
   window._saveToFirestore = async (name, msg, vote) => {
     try {
       await addDoc(collection(db, 'timeTakenMessages'), {
@@ -663,13 +636,11 @@ waitForFirebase((db) => {
 function trackOnlinePresence(db) {
   const { doc, setDoc, onSnapshot, serverTimestamp, increment, collection, deleteDoc } = window._firestoreApi;
 
-  // Unique session ID for this browser tab
   const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   const presenceRef = doc(db, 'timeTakenPresence', sessionId);
   const counterRef = doc(db, 'timeTakenOnlineCount', 'counter');
   let registered = false;
 
-  // Register this user as online
   function goOnline() {
     if (registered) return;
     registered = true;
@@ -680,12 +651,10 @@ function trackOnlinePresence(db) {
       online: true,
       lastSeen: serverTimestamp(),
     }).then(() => {
-      // Increment global online counter
       setDoc(counterRef, { count: increment(1) }, { merge: true });
     }).catch(err => console.error('[TrafficIQ] Presence set failed:', err));
   }
 
-  // Remove presence on leave
   function goOffline() {
     if (!registered) return;
     registered = false;
@@ -695,14 +664,12 @@ function trackOnlinePresence(db) {
     } catch (e) { /* best effort */ }
   }
 
-  // Heartbeat: update lastSeen every 30s so stale sessions can be cleaned
   setInterval(() => {
     if (registered) {
       setDoc(presenceRef, { lastSeen: serverTimestamp() }, { merge: true }).catch(() => { });
     }
   }, 30000);
 
-  // Listen for real online count
   onSnapshot(counterRef, (snap) => {
     const count = snap.exists() ? Math.max(0, snap.data().count || 0) : 0;
     const el = document.getElementById('tbOnline');
@@ -711,7 +678,6 @@ function trackOnlinePresence(db) {
 
   goOnline();
 
-  // Cleanup on page leave
   window.addEventListener('beforeunload', goOffline);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') goOffline();
@@ -772,17 +738,42 @@ document.getElementById('chatInp').addEventListener('keydown', e => {
 });
 
 
-/* ══ MOBILE PANEL ══ */
+/* ══ MOBILE PANEL TOGGLE ══
+   Works for both the old #panTog (desktop) and the new #mobMenuBtn (mobile).
+   The hamburger button animates to an X via CSS classes.
+══ */
 const panel = document.getElementById('panel');
 const overlay = document.getElementById('mobOverlay');
-function togglePanel() { panel.classList.toggle('open'); overlay.classList.toggle('show'); }
+const mobMenuBtn = document.getElementById('mobMenuBtn');
+
+function togglePanel() {
+  const isOpen = panel.classList.toggle('open');
+  overlay.classList.toggle('show', isOpen);
+
+  // Toggle hamburger → X state on the mobile button
+  if (mobMenuBtn) mobMenuBtn.classList.toggle('active', isOpen);
+
+  // Redraw graph when panel becomes visible (it may have had 0 width before)
+  if (isOpen) setTimeout(redrawGraph, 380);
+}
+
 document.getElementById('panTog').addEventListener('click', togglePanel);
+
+// Close panel on Escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && panel.classList.contains('open')) togglePanel();
+});
 
 
 /* ══ GSAP ENTRANCE ══ */
 window.addEventListener('DOMContentLoaded', () => {
   gsap.to('#topbar', { y: 0, opacity: 1, duration: .6, ease: 'power3.out', delay: .1 });
-  gsap.to('#panel', { x: 0, opacity: 1, duration: .75, ease: 'power3.out', delay: .25 });
+
+  // On desktop: animate the panel in. On mobile: keep it hidden (translateX(-100%)).
+  if (window.innerWidth > 860) {
+    gsap.to('#panel', { x: 0, opacity: 1, duration: .75, ease: 'power3.out', delay: .25 });
+  }
+
   gsap.from('.stream', { opacity: 0, duration: .5, ease: 'power2.out', delay: .35 });
   gsap.from('.poll-card', { x: -18, opacity: 0, stagger: .1, duration: .5, ease: 'power2.out', delay: .4 });
   gsap.from('.trend-block', { y: 12, opacity: 0, duration: .5, ease: 'power2.out', delay: .62 });
@@ -791,4 +782,12 @@ window.addEventListener('DOMContentLoaded', () => {
   setTimeout(redrawGraph, 500);
 });
 
-window.addEventListener('resize', redrawGraph);
+window.addEventListener('resize', () => {
+  redrawGraph();
+  // Auto-close panel if resizing back to desktop
+  if (window.innerWidth > 860 && panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    overlay.classList.remove('show');
+    if (mobMenuBtn) mobMenuBtn.classList.remove('active');
+  }
+});

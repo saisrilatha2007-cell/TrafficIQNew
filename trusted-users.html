@@ -11,7 +11,7 @@
 </head>
 <body>
 
-<!-- LOADING OVERLAY — covers everything until Firebase data is ready -->
+<!-- LOADING OVERLAY -->
 <div id="loadingOverlay">
   <div class="lo-inner">
     <div class="lo-logo">🏆</div>
@@ -31,6 +31,14 @@
 <!-- TOP BAR -->
 <header id="topbar">
   <div class="tb-l">
+    <!-- Mobile hamburger — hidden on desktop, shown on mobile -->
+    <button id="mobMenuBtn" class="icon-btn mob-menu-btn" title="Leaderboard Panel" aria-label="Open Leaderboard Panel">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
     <a href="dashboard.html" class="back-btn">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M5 12l7-7M5 12l7 7"/></svg>Back
     </a>
@@ -42,6 +50,9 @@
   <div class="tb-r">
     <div class="tb-stat"><strong id="tbUsers">—</strong><span>reporters</span></div>
     <div class="tb-stat"><strong id="tbCoins">—</strong><span>coins today</span></div>
+    <button id="panTog" class="icon-btn" title="Toggle Panel">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+    </button>
     <button id="themeBtn" class="icon-btn">🌙</button>
   </div>
 </header>
@@ -49,9 +60,43 @@
 <!-- LAYOUT -->
 <div class="layout" id="mainLayout">
 
-  <!-- LEFT — Leaderboard -->
+  <!-- LEFT — Leaderboard (40%) -->
   <aside id="panel">
+
+    <!-- Close button — mobile only, position:fixed so never scrolls away -->
+    <button id="panelCloseBtn" class="panel-close-btn" aria-label="Close panel" onclick="togglePanel()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
     <div class="panel-inner">
+
+      <!-- Stats block — desktop -->
+      <div class="stats-block">
+        <p class="section-label">LIVE STATS</p>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-val" id="panUsersD">—</span>
+            <span class="stat-lbl">Reporters</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-val" id="panCoinsD">—</span>
+            <span class="stat-lbl">Coins Today</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats strip — mobile only -->
+      <div class="panel-mob-stats">
+        <div class="ps-item">
+          <span class="ps-val" id="panUsersM">—</span>
+          <span class="ps-lbl">Reporters</span>
+        </div>
+        <div class="ps-div"></div>
+        <div class="ps-item">
+          <span class="ps-val" id="panCoinsM">—</span>
+          <span class="ps-lbl">Coins</span>
+        </div>
+      </div>
 
       <div class="section-header">
         <span class="section-ico">🏆</span>
@@ -73,8 +118,19 @@
     </div>
   </aside>
 
-  <!-- RIGHT — Rewards -->
+  <!-- RIGHT — Rewards (60%) -->
   <main class="rewards-panel">
+
+    <!-- Mobile top bar — hidden on desktop -->
+    <div class="mob-rewards-bar">
+      <button id="mobLeaderBtn" class="mob-leader-btn" aria-label="View leaderboard">
+        <span class="mlb-ico">🏆</span>
+        <span>Leaderboard</span>
+        <span class="mlb-badge" id="mlbBadge"></span>
+      </button>
+      <span class="mob-bar-title">REWARDS &amp; COINS</span>
+    </div>
+
     <div class="rewards-inner">
 
       <div class="wallet-card" id="walletCard">
@@ -114,6 +170,75 @@
   </main>
 </div>
 
+<!-- Overlay — covers ONLY the rewards side when panel open -->
+<div id="mobOverlay" onclick="togglePanel()"></div>
+
+<!-- ══ MOBILE PANEL TOGGLE — same pattern as shortcuts.html ══ -->
+<script>
+  function isMobile() { return window.innerWidth <= 860; }
+
+  function togglePanel() {
+    const panel     = document.getElementById('panel');
+    const overlay   = document.getElementById('mobOverlay');
+    const isOpening = !panel.classList.contains('open');
+
+    panel.classList.toggle('open');
+    overlay.classList.toggle('show');
+
+    if (isOpening) {
+      /* Overlay left edge = panel right edge, so panel buttons never get covered */
+      const panelWidth = Math.min(window.innerWidth * 0.86, 360);
+      overlay.style.left = panelWidth + 'px';
+    } else {
+      overlay.style.left = '0';
+    }
+  }
+
+  window.togglePanel = togglePanel;
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const mobMenuBtn    = document.getElementById('mobMenuBtn');
+    const panelCloseBtn = document.getElementById('panelCloseBtn');
+    const mobLeaderBtn  = document.getElementById('mobLeaderBtn');
+    const panTog        = document.getElementById('panTog');
+    const mobOverlay    = document.getElementById('mobOverlay');
+
+    if (mobMenuBtn)    mobMenuBtn.addEventListener('click', togglePanel);
+    if (panelCloseBtn) panelCloseBtn.addEventListener('click', togglePanel);
+    if (mobLeaderBtn)  mobLeaderBtn.addEventListener('click', togglePanel);
+    if (panTog)        panTog.addEventListener('click', togglePanel);
+    if (mobOverlay)    mobOverlay.onclick = togglePanel;
+
+    /* Sync tbUsers / tbCoins → panel stat strips whenever JS updates them */
+    const syncStats = () => {
+      const tu = document.getElementById('tbUsers');
+      const tc = document.getElementById('tbCoins');
+      if (tu) { const v=tu.textContent; ['panUsersD','panUsersM'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=v;}); }
+      if (tc) { const v=tc.textContent; ['panCoinsD','panCoinsM'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=v;}); }
+    };
+    ['tbUsers','tbCoins'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) new MutationObserver(syncStats).observe(el, { childList:true, subtree:true, characterData:true });
+    });
+
+    /* Update badge count on mobile leaderboard button when JS populates the lists */
+    const updateBadge = () => {
+      const count = document.querySelectorAll('.rank-row, .podium-slot').length;
+      const badge = document.getElementById('mlbBadge');
+      const btn   = document.getElementById('mobLeaderBtn');
+      if (!badge || !btn || !count) return;
+      badge.textContent = count;
+      badge.classList.add('show');
+      btn.classList.add('has-data');
+    };
+    const podium   = document.getElementById('podium');
+    const rankList = document.getElementById('rankList');
+    if (podium)   new MutationObserver(updateBadge).observe(podium,   { childList:true });
+    if (rankList) new MutationObserver(updateBadge).observe(rankList, { childList:true });
+  });
+</script>
+
+<!-- Logic — completely untouched -->
 <script type="module" src="trusted-users.js"></script>
 </body>
 </html>

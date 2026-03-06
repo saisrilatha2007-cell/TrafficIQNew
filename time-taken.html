@@ -19,6 +19,13 @@
 
   <header id="topbar">
     <div class="tb-l">
+      <!-- Hamburger menu button — visible only on mobile -->
+      <button id="mobMenuBtn" aria-label="Toggle poll panel" onclick="togglePanel()">
+        <span class="bar bar1"></span>
+        <span class="bar bar2"></span>
+        <span class="bar bar3"></span>
+      </button>
+
       <a href="dashboard.html" class="back-btn">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
           stroke-linecap="round">
@@ -33,6 +40,7 @@
     <div class="tb-r">
       <div class="tb-stat"><strong id="tbTotal">0</strong><span>total votes</span></div>
       <div class="tb-stat"><strong id="tbOnline">0</strong><span>online</span></div>
+      <!-- panTog kept for desktop (hidden on mobile via CSS) -->
       <button id="panTog" class="icon-btn" title="Toggle Panel">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="3" width="7" height="18" rx="1" />
@@ -45,7 +53,7 @@
 
   <div class="layout">
 
-    <!-- LEFT PANEL 25% -->
+    <!-- LEFT PANEL 25% (desktop) / slide-over (mobile) -->
     <aside id="panel">
       <div class="panel-inner">
 
@@ -233,6 +241,7 @@
     </main>
   </div>
 
+  <!-- Mobile overlay: tap to close panel -->
   <div id="mobOverlay" onclick="togglePanel()"></div>
 
   <!-- ══ FIREBASE INIT ══ -->

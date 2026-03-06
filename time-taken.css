@@ -54,6 +54,36 @@ body{animation:pgIn .65s ease both}
 .icon-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--bdr);background:rgba(255,255,255,.04);cursor:pointer;color:var(--sub);font-size:.9rem;display:grid;place-items:center;transition:background var(--e),border-color var(--e),color var(--e),transform .3s}
 .icon-btn:hover{background:var(--glow);border-color:var(--c);color:var(--c);transform:rotate(12deg)}
 
+/* ── MOBILE MENU BUTTON (hidden on desktop) ── */
+#mobMenuBtn{
+  display:none;
+  width:36px;height:36px;border-radius:9px;
+  border:1px solid var(--bdr);background:rgba(255,255,255,.04);
+  cursor:pointer;color:var(--sub);
+  align-items:center;justify-content:center;flex-shrink:0;
+  transition:background var(--e),border-color var(--e),color var(--e);
+  position:relative;
+}
+#mobMenuBtn:hover{background:var(--glow);border-color:var(--c);color:var(--c)}
+#mobMenuBtn.active{
+  background:rgba(0,207,255,.12);
+  border-color:rgba(0,207,255,.45);
+  color:var(--c);
+  box-shadow:0 0 10px rgba(0,207,255,.2);
+}
+/* Hamburger → X animation */
+#mobMenuBtn .bar{
+  display:block;width:16px;height:1.8px;border-radius:2px;
+  background:currentColor;transition:transform .28s ease, opacity .2s ease, top .28s ease;
+  position:absolute;left:50%;transform-origin:center;
+}
+#mobMenuBtn .bar1{top:calc(50% - 5px);transform:translateX(-50%)}
+#mobMenuBtn .bar2{top:50%;transform:translateX(-50%) translateY(-50%)}
+#mobMenuBtn .bar3{top:calc(50% + 5px - 1.8px);transform:translateX(-50%)}
+#mobMenuBtn.active .bar1{top:50%;transform:translateX(-50%) translateY(-50%) rotate(45deg)}
+#mobMenuBtn.active .bar2{opacity:0;transform:translateX(-50%) translateY(-50%) scaleX(0)}
+#mobMenuBtn.active .bar3{top:50%;transform:translateX(-50%) translateY(-50%) rotate(-45deg)}
+
 /* ── LAYOUT ─────────────────────────── */
 .layout{position:fixed;inset:0;top:52px;display:grid;grid-template-columns:25% 75%;z-index:10}
 
@@ -252,20 +282,73 @@ body{animation:pgIn .65s ease both}
 .qi:active{transform:scale(.88)}
 .qi-active{color:var(--c)!important;border-color:rgba(0,207,255,.4)!important;background:rgba(0,207,255,.1)!important;box-shadow:0 0 10px rgba(0,207,255,.2)!important}
 
-/* ── Mobile ─────────────────────────── */
-#mobOverlay{display:none;position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.5);backdrop-filter:blur(4px)}
-#mobOverlay.show{display:block}
-@media(max-width:860px){
-  .layout{grid-template-columns:1fr}
-  #panel{position:fixed;top:52px;left:0;bottom:0;width:82%;max-width:320px;z-index:160;transform:translateX(-100%)!important;opacity:1!important;transition:transform .35s cubic-bezier(.4,0,.2,1)}
-  #panel.open{transform:translateX(0)!important}
-  .stream{height:calc(100vh - 52px)}
+/* ── Desktop: hide #panTog ──────────── */
+@media(min-width:861px){
+  #panTog{display:none}
+  #mobMenuBtn{display:none}
 }
+
+/* ── Mobile Overlay — transparent tap-catcher only ── */
+#mobOverlay{
+  display:none;
+  position:fixed;inset:0;z-index:150;
+  background:transparent;
+}
+#mobOverlay.show{display:block}
+
+@media(max-width:860px){
+  /* Full-width single-column layout */
+  .layout{
+    grid-template-columns:1fr;
+    grid-template-rows:1fr;
+  }
+
+  /* Panel slides in as overlay from the left — does NOT affect stream width */
+  #panel{
+    position:fixed;
+    top:52px;left:0;bottom:0;
+    width:82%;max-width:320px;
+    z-index:160;
+    transform:translateX(-100%) !important;
+    opacity:1 !important;
+    transition:transform .35s cubic-bezier(.4,0,.2,1), box-shadow .35s ease;
+    box-shadow:none;
+  }
+  #panel.open{
+    transform:translateX(0) !important;
+    box-shadow:6px 0 40px rgba(0,0,0,.55), 2px 0 0 rgba(0,207,255,.1);
+  }
+
+  /* Stream takes full width */
+  .stream{
+    grid-column:1;
+    height:calc(100vh - 52px);
+    width:100%;
+  }
+
+  /* Show the hamburger menu button */
+  #mobMenuBtn{display:flex}
+
+  /* Hide the old panel toggle */
+  #panTog{display:none}
+
+  /* Compact topbar on mobile */
+  .tb-brand h1{font-size:.82rem}
+  .live-badge{display:none}
+  .back-btn span{display:none}
+}
+
 @media(max-width:560px){
   .qi{width:28px;height:28px}.qnav{gap:3px}
-  .tb-stat{display:none}.trig{font-size:.67rem;padding:4px 9px}
+  .tb-stat{display:none}
+  .trig{font-size:.67rem;padding:4px 9px}
+  .tb-brand h1{font-size:.76rem}
+  .inline-poll{padding:7px 12px}
+  .ip-label{display:none}
 }
+
 ::selection{background:rgba(0,207,255,.2)}
+
 /* ══ LIKE ROW ══ */
 .like-row{display:flex;align-items:center;gap:6px;margin-top:5px;padding-left:2px}
 .msg.own .like-row{justify-content:flex-end;padding-left:0;padding-right:2px}
