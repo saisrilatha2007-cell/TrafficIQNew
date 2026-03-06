@@ -97,7 +97,6 @@ body{animation:pgIn .65s ease both}
   overflow-y:auto;overflow-x:hidden;
   transform:translateX(-100%);opacity:0;
   position:relative;
-  /* Isolate stacking context so backdrop-filter never bleeds into siblings */
   isolation:isolate;
 }
 #panel::-webkit-scrollbar{width:3px}
@@ -267,7 +266,6 @@ body{animation:pgIn .65s ease both}
   display:flex;flex-direction:column;
   background:rgba(4,8,22,.55);
   position:relative;overflow:hidden;
-  /* Own stacking context — prevents panel's backdrop-filter from affecting it */
   isolation:isolate;
   z-index:5;
 }
@@ -290,12 +288,10 @@ body{animation:pgIn .65s ease both}
 .empty-sub{font-size:.78rem;color:var(--sub);line-height:1.55;max-width:300px}
 
 /* ── SCROLL TO BOTTOM BUTTON ────────────────────── */
-/* Fixed to viewport — always above overlay(155) and panel(160).
-   NEVER hidden via JS; only shown/hidden via .show class. */
 .scroll-btn{
   position:fixed;
   bottom:130px;right:20px;
-  z-index:300;  /* highest — always tappable regardless of panel/overlay state */
+  z-index:300;
   display:none;align-items:center;gap:6px;
   background:var(--c);color:#fff;border:none;border-radius:99px;
   padding:7px 14px;font-size:.74rem;font-weight:600;cursor:pointer;
@@ -377,19 +373,13 @@ body{animation:pgIn .65s ease both}
 .qi-active{color:var(--cg)!important;border-color:rgba(34,197,94,.4)!important;background:rgba(34,197,94,.1)!important;box-shadow:0 0 10px rgba(34,197,94,.2)!important}
 .qi-active:hover{transform:translateY(-3px)!important}
 
-/* ── Mobile Overlay ─────────────────────────────────────────────────
-   KEY FIX: NO backdrop-filter here — that is what caused the entire
-   page behind it to appear blurred. Plain semi-transparent bg only.
-   z-index sits between stream(5) and panel(160) so panel is interactive.
-──────────────────────────────────────────────────────────────────── */
+/* ── Mobile Overlay — transparent tap-catcher only ── */
 #mobOverlay{
   display:none;
   position:fixed;inset:0;
   z-index:150;
-  background:rgba(0,0,0,.52);
-  /* backdrop-filter intentionally omitted — was the blur culprit */
+  background:transparent;
   cursor:pointer;
-  /* No isolation or transform that could create a new stacking context */
 }
 #mobOverlay.show{display:block}
 
@@ -459,8 +449,8 @@ body{animation:pgIn .65s ease both}
   .mob-menu-btn{display:grid!important;flex-shrink:0}
 
   /* Panel: fixed off-screen drawer.
-     !important beats GSAP inline styles.
-     isolation:isolate keeps backdrop-filter self-contained. */
+     Solid opaque background — no backdrop-filter, which caused
+     the page-wide blur/dim even when the panel was off-screen. */
   #panel{
     position:fixed !important;
     top:52px !important;
@@ -470,10 +460,10 @@ body{animation:pgIn .65s ease both}
     max-width:360px !important;
     height:auto !important;
     z-index:160 !important;
-    background:var(--panel) !important;
-    backdrop-filter:blur(28px) saturate(2) !important;
-    -webkit-backdrop-filter:blur(28px) saturate(2) !important;
-    isolation:isolate !important;           /* ← prevents bleed to siblings */
+    background:rgb(6,12,30) !important;
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+    isolation:isolate !important;
     transform:translateX(-100%) !important;
     opacity:1 !important;
     transition:transform .35s cubic-bezier(.4,0,.2,1),
@@ -483,6 +473,10 @@ body{animation:pgIn .65s ease both}
     overflow-x:hidden !important;
     border-right:1px solid var(--bdr) !important;
   }
+  [data-theme="light"] #panel{
+    background:rgb(240,245,255) !important;
+  }
+
   #panel.open{
     transform:translateX(0) !important;
     box-shadow:6px 0 40px rgba(0,0,0,.45),0 0 60px rgba(0,207,255,.06) !important;

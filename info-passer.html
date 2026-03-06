@@ -16,6 +16,14 @@
 <!-- TOP BAR -->
 <header id="topbar">
   <div class="tb-l">
+    <!-- Mobile hamburger — hidden on desktop -->
+    <button id="mobMenuBtn" class="icon-btn mob-menu-btn" title="Alerts Panel" aria-label="Open Alerts Panel">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
     <a href="dashboard.html" class="back-btn">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M5 12l7-7M5 12l7 7"/></svg>Back
     </a>
@@ -27,7 +35,7 @@
   <div class="tb-r">
     <div class="tb-stat"><strong id="tbAlerts">0</strong><span>alerts</span></div>
     <div class="tb-stat"><strong id="tbUsers">0</strong><span>reporters</span></div>
-    <button id="panTog" class="icon-btn" title="Panel">
+    <button id="panTog" class="icon-btn" title="Toggle Panel">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
     </button>
     <button id="themeBtn" class="icon-btn">🌙</button>
@@ -37,28 +45,79 @@
 <!-- LAYOUT -->
 <div class="layout">
 
-  <!-- LEFT PANEL 25% — ranked issues -->
+  <!-- LEFT PANEL — ranked alerts -->
   <aside id="panel">
+
+    <!-- Close button inside panel — mobile only -->
+    <button id="panelCloseBtn" class="panel-close-btn" aria-label="Close panel">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
     <div class="panel-inner">
-      <p class="panel-title">🔴 AUTO-RANKED ALERTS</p>
-      <p class="panel-sub">Sorted by repetition · Updates live</p>
-      <div id="rankList"></div>
+
+      <!-- Stats block — desktop -->
+      <div class="stats-block">
+        <p class="section-label">LIVE STATS</p>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-val" id="panAlertsD">0</span>
+            <span class="stat-lbl">Alerts</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-val" id="panUsersD">0</span>
+            <span class="stat-lbl">Reporters</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats strip — mobile only -->
+      <div class="panel-mob-stats">
+        <div class="ps-item">
+          <span class="ps-val" id="panAlertsM">0</span>
+          <span class="ps-lbl">Alerts</span>
+        </div>
+        <div class="ps-div"></div>
+        <div class="ps-item">
+          <span class="ps-val" id="panUsersM">0</span>
+          <span class="ps-lbl">Reporters</span>
+        </div>
+      </div>
+
+      <!-- Ranked Alerts -->
+      <div class="alerts-block">
+        <p class="panel-title">🔴 AUTO-RANKED ALERTS</p>
+        <p class="panel-sub">Sorted by repetition · Updates live</p>
+        <div id="rankList"></div>
+      </div>
+
     </div>
   </aside>
 
-  <!-- RIGHT 75% — alert feed -->
+  <!-- RIGHT — alert feed -->
   <main class="stream">
 
-    <button id="scrollBtn" class="scroll-btn" onclick="scrollToBottom()">
+    <button id="scrollBtn" class="scroll-btn">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
       New alerts ↓
     </button>
+
+    <!-- Feed header -->
+    <div class="feed-hdr">
+      <span class="feed-hdr-title">LIVE ALERT FEED</span>
+      <span class="feed-hdr-sub" id="feedSub">Real-time reports</span>
+    </div>
 
     <div class="feed" id="feed"></div>
 
     <!-- DOCK -->
     <div class="dock">
       <div class="triggers">
+        <!-- Mobile alerts panel button — mobile only, first in row -->
+        <button id="mobAlertsBtn" aria-label="View ranked alerts">
+          <span class="mab-ico">🔴</span>
+          <span>Alerts</span>
+          <span class="mab-badge" id="mabBadge"></span>
+        </button>
         <button class="trig trig-red"   data-type="accident"     data-msg="🚨 Accident at signal — avoid immediately!"        onclick="trigFill(this)">🚨 Accident at Signal</button>
         <button class="trig trig-amber" data-type="blocked"      data-msg="🚧 Road blocked — major diversion in effect."      onclick="trigFill(this)">🚧 Road Blocked</button>
         <button class="trig trig-amber" data-type="diversion"    data-msg="🔀 Heavy diversion ahead — expect long delays."    onclick="trigFill(this)">🔀 Heavy Diversion</button>
@@ -85,22 +144,94 @@
   </main>
 </div>
 
-<div id="mobOverlay" onclick="togglePanel()"></div>
+<!-- Overlay tap-catcher -->
+<div id="mobOverlay"></div>
 <div id="av-tip"></div>
+
+<!-- ══ PANEL TOGGLE — clean single source of truth ══ -->
+<script>
+  function togglePanel() {
+    const panel   = document.getElementById('panel');
+    const overlay = document.getElementById('mobOverlay');
+    panel.classList.toggle('open');
+    overlay.classList.toggle('show');
+  }
+  window.togglePanel = togglePanel;
+
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('mobMenuBtn')   ?.addEventListener('click', togglePanel);
+    document.getElementById('panelCloseBtn')?.addEventListener('click', togglePanel);
+    document.getElementById('mobAlertsBtn') ?.addEventListener('click', togglePanel);
+    document.getElementById('panTog')       ?.addEventListener('click', togglePanel);
+    document.getElementById('mobOverlay')   ?.addEventListener('click', togglePanel);
+
+    /* Scroll button wired here so it works before info-passer.js loads */
+    document.getElementById('scrollBtn')
+      ?.addEventListener('click', () => { if(window.scrollToBottom) window.scrollToBottom(); });
+
+    /* Sync top-bar counters → panel stat strips */
+    const syncStats = () => {
+      ['tbAlerts', 'tbUsers'].forEach(src => {
+        const el = document.getElementById(src);
+        if (!el) return;
+        const v = el.textContent;
+        const targets = src === 'tbAlerts'
+          ? ['panAlertsD','panAlertsM']
+          : ['panUsersD','panUsersM'];
+        targets.forEach(id => { const t=document.getElementById(id); if(t) t.textContent=v; });
+      });
+    };
+    ['tbAlerts','tbUsers'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) new MutationObserver(syncStats).observe(el,{childList:true,subtree:true,characterData:true});
+    });
+
+    /* Alerts button badge */
+    const rankList = document.getElementById('rankList');
+    if (rankList) {
+      new MutationObserver(() => {
+        const count = rankList.querySelectorAll('.rank-card').length;
+        const badge = document.getElementById('mabBadge');
+        const btn   = document.getElementById('mobAlertsBtn');
+        if (!badge||!btn) return;
+        if (count > 0) { badge.textContent=count; badge.classList.add('show'); btn.classList.add('has-alerts'); }
+        else           { badge.classList.remove('show'); btn.classList.remove('has-alerts'); }
+      }).observe(rankList,{childList:true,subtree:true});
+    }
+
+    /* Feed sub label */
+    const cityLabel = document.getElementById('cityLabel');
+    const feedSub   = document.getElementById('feedSub');
+    if (cityLabel && feedSub) {
+      new MutationObserver(() => {
+        if (cityLabel.textContent && cityLabel.textContent !== '…')
+          feedSub.textContent = cityLabel.textContent + ' · Real-time';
+      }).observe(cityLabel,{childList:true,characterData:true,subtree:true});
+    }
+  });
+
+  /* GSAP mobile intercept — stop GSAP overriding CSS panel transform */
+  if (window.innerWidth <= 860) {
+    const interceptGSAP = () => {
+      if (!window.gsap) { setTimeout(interceptGSAP, 50); return; }
+      const _orig = window.gsap.to.bind(window.gsap);
+      window.gsap.to = function(target, vars) {
+        if (window.innerWidth <= 860) {
+          const el = typeof target==='string' ? document.querySelector(target) : target;
+          if (el && el.id==='panel') return { kill:()=>{} };
+        }
+        return _orig(target, vars);
+      };
+    };
+    interceptGSAP();
+  }
+</script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
-    getFirestore,
-    collection,
-    doc,
-    setDoc,
-    updateDoc,
-    increment,
-    onSnapshot,
-    query,
-    orderBy,
-    serverTimestamp
+    getFirestore, collection, doc, setDoc, updateDoc,
+    increment, onSnapshot, query, orderBy, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -115,21 +246,9 @@
   const app = initializeApp(firebaseConfig);
   const db  = getFirestore(app);
 
-  // expose globally for info-passer.js
   window.db = db;
-  window.fb = {
-    collection,
-    doc,
-    setDoc,
-    updateDoc,
-    increment,
-    onSnapshot,
-    query,
-    orderBy,
-    serverTimestamp
-  };
+  window.fb = { collection, doc, setDoc, updateDoc, increment, onSnapshot, query, orderBy, serverTimestamp };
 
-  // load main script AFTER firebase ready
   const s = document.createElement('script');
   s.src = 'info-passer.js';
   document.body.appendChild(s);
